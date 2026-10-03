@@ -7,26 +7,31 @@ enum FormRoute: Identifiable {
     var id: String { switch self { case .create: "create"; case .edit(let id): id.uuidString } }
 }
 @MainActor final class Session: ObservableObject {
-    let integration = IntegrationAssembly()
+    let integration: IntegrationAssembly
     let model: AppModel?
     let startupError: String?
     @Published var selected: UUID?
     @Published var filter: TaskStatus = .inProgress
     @Published var route: FormRoute?
     @Published var generating = false
+    @Published var needsSetup = true
+    @Published var credentialError: String?
     @Published var scenario: MockScenario = .success
     @Published var jiraBase = UserDefaults.standard.string(forKey: "jiraBrowseBase") ?? ""
     private var timer: Timer?
     private var wakeObserver: NSObjectProtocol?
     private var lastDay = Dates.day()
-    init(databaseURL: URL? = nil) {
+    init(databaseURL: URL? = nil, tokenVault: any TokenVault = KeychainTokenVault()) {
+        integration = IntegrationAssembly(tokenVault: tokenVault)
+        do { needsSetup = !(try tokenVault.load()).configured }
+        catch { credentialError = error.localizedDescription }
+
         do {
             let url: URL
             if let databaseURL { url = databaseURL }
             else if CommandLine.arguments.contains("--demo") { url = Database.defaultURL.deletingLastPathComponent().appendingPathComponent("Demo/questlet.sqlite") }
             else { url = Database.defaultURL }
             let m = try AppModel(database: Database(url: url), jira: integration.jira)
-            m.refresh(resuming: true)
             if CommandLine.arguments.contains("--demo"), m.tasks.isEmpty {
                 let today = m.today, day = Dates.date(today)!
                 let end = Dates.day(Dates.calendar.date(byAdding: .day, value: 4, to: day)!)
@@ -37,14 +42,21 @@ enum FormRoute: Identifiable {
                 let future = Dates.day(Dates.calendar.date(byAdding: .day, value: 6, to: day)!)
                 _ = try m.save(id: nil, title: "배포 검증", ticket: "", start: future, end: future)
             }
-            selected = m.list(status: .inProgress).first?.id
             model = m; startupError = nil
+            if !needsSetup { m.refresh(resuming: true) }
+            selected = m.list(status: .inProgress).first?.id
         } catch { model = nil; startupError = error.localizedDescription }
-        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in Task { @MainActor in self?.tick(); self?.model?.refresh(resuming: true) } }
+        wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in Task { @MainActor in self?.tick(); self?.resume() } }
         timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in Task { @MainActor in self?.tick() } }
     }
+    func saveTokens(jira: String, emux: String) throws {
+        try integration.tokenVault.update(jira: jira, emux: emux)
+        needsSetup = false; credentialError = nil
+        model?.refresh(resuming: true)
+    }
     func choose(_ task: WorkItem) { filter = task.status; selected = task.id }
-    func tick() { let day = Dates.day(); if day != lastDay { lastDay = day; model?.refresh() } }
+    func resume() { if !needsSetup { model?.refresh(resuming: true) } }
+    func tick() { guard !needsSetup else { return }; let day = Dates.day(); if day != lastDay { lastDay = day; model?.refresh() } }
     func openTicket(_ ticket: String) {
         guard let base = Validation.webURL(jiraBase) else { model?.error = "설정에서 사내 Jira browse 주소를 입력하세요. 예: https://회사주소/browse/"; return }
         NSWorkspace.shared.open(base.appendingPathComponent(ticket))
@@ -67,9 +79,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .preferredColorScheme(.light)
             .frame(minWidth: 780, minHeight: 620)
+            .sheet(isPresented: $session.needsSetup) { TokenConfigurationForm(firstRun: true).environmentObject(session).interactiveDismissDisabled() }
         }
         .defaultSize(width: 960, height: 700)
-        .commands { CommandGroup(replacing: .newItem) { Button("새로 만들기") { session.route = .create }.keyboardShortcut("n").disabled(session.generating) } }
+        .commands { CommandGroup(replacing: .newItem) { Button("새로 만들기") { session.route = .create }.keyboardShortcut("n").disabled(session.generating || session.needsSetup) } }
         MenuBarExtra {
             if let model = session.model { MenuPopover().environmentObject(model).environmentObject(session).preferredColorScheme(.light) }
             else { Text(session.startupError ?? "시작 오류").padding() }
@@ -81,18 +94,3 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 #endif
-
-struct SettingsView: View {
-    @EnvironmentObject var session: Session
-    var body: some View {
-        Form {
-            Text("현재 모든 외부 연동은 mock입니다.").foregroundStyle(.secondary)
-            Picker("모의 응답", selection: $session.scenario) { ForEach(MockScenario.allCases, id: \.self) { Text($0.rawValue).tag($0) } }
-                .onChange(of: session.scenario) { _, value in Task { await session.integration.control.set(value) } }
-            TextField("Jira browse 주소", text: $session.jiraBase)
-                .onChange(of: session.jiraBase) { _, value in UserDefaults.standard.set(value, forKey: "jiraBrowseBase") }
-            Text("티켓 링크만 열며 실제 Jira 변경은 수행하지 않습니다.").font(.caption).foregroundStyle(.secondary)
-            if let model = session.model { LabeledContent("로컬 DB") { Text(model.database.url.path).textSelection(.enabled).font(.caption) } }
-        }.formStyle(.grouped).frame(width: 560).padding()
-    }
-}

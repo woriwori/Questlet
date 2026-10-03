@@ -24,6 +24,8 @@ SwiftUI 네이티브 앱, 로컬 SQLite, 메뉴바 팝오버, 작업 폼·검색
 ## 첫 버전
 
 - SwiftUI 기반 Mac 앱과 로컬 SQLite 저장
+- 최초 실행 Jira·emux PAT 설정, macOS 키체인 저장, 톱니바퀴 설정에서 토큰 교체
+- 설정에서 확인 후 완료 작업·코멘트 일괄 로컬 삭제
 - 제목·선택적인 티켓·날짜 범위를 폼으로 등록·수정
 - ToDo / InProgress / Closed 자동 상태 계산
 - 원문 코멘트·링크·기록 시각과 로컬 키워드 검색
@@ -50,6 +52,6 @@ open dist/Questlet.app
 
 현재 컴퓨터의 Swift Package Manager는 설치된 프레임워크 심볼 오류로 실행되지 않아 `swiftc` 빌드 스크립트를 제공한다. 스크립트는 호환 SDK인 MacOSX26.5.sdk를 명시한다. 다른 개발 환경에서는 `QUESTLET_SDK_PATH=/사용가능한/SDK/경로 ./scripts/build.sh`로 지정한다. Package.swift도 포함하며 정상 SwiftPM 환경에서는 일반 패키지 빌드·테스트를 사용할 수 있다.
 
-로컬 DB: `~/Library/Application Support/Questlet/questlet.sqlite`. 데모는 하위 `Demo` 폴더다. 창을 닫아도 메뉴바에서 계속 실행하며 앱 메뉴에서 종료한다. 설정에서 mock 성공·실패·결과 불명을 선택하고 Jira browse 주소를 입력할 수 있다. 실제 인증 토큰은 사용하지 않는다.
+로컬 DB: `~/Library/Application Support/Questlet/questlet.sqlite`. 데모는 하위 `Demo` 폴더다. 창을 닫아도 메뉴바에서 계속 실행하며 앱 메뉴에서 종료한다. 설정에서 mock 성공·실패·결과 불명을 선택하고 Jira browse 주소를 입력할 수 있다. 최초 실행에는 Jira·emux PAT를 입력하고 macOS 키체인에 저장한다. 이후 상단 우측 + 왼쪽의 톱니바퀴 또는 앱 메뉴의 설정에서 개별 PAT를 교체하고 완료 작업을 일괄 로컬 삭제할 수 있다. 현재 mock은 PAT 유효성을 검증하거나 외부로 전송하지 않는다.
 
 검증 결과와 남은 사내 연결 작업은 [구현 보고서](docs/IMPLEMENTATION.md)에 있다.

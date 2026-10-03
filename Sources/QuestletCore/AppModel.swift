@@ -69,11 +69,19 @@ import Combine
         next.tasks[index].feedback = task.ticket.isEmpty ? "로컬에 저장했습니다." : "로컬에 저장했습니다. Jira 반영 대기 중…"
         try commit(next); pump()
     }
-    public func delete(_ id: UUID) throws {
+    public func delete(_ id: UUID) throws { try delete(ids: [id]) }
+    @discardableResult public func deleteClosed() throws -> Int {
+        // Recalculate using today at confirmation time, even if the daily timer has not fired.
+        let ids = Set(tasks.filter { Dates.status(start: $0.start, end: $0.end, today: today) == .closed }.map { $0.id })
+        guard !ids.isEmpty else { return 0 }
+        try delete(ids: ids)
+        return ids.count
+    }
+    private func delete(ids: Set<UUID>) throws {
         var next = snapshot
-        next.tasks.removeAll { $0.id == id }
-        // 전송 중 요청은 결과를 정리할 때까지 유지한다. 늦은 응답은 작업을 생성하지 않는다.
-        next.requests.removeAll { $0.taskID == id && $0.state != .running }
+        next.tasks.removeAll { ids.contains($0.id) }
+        // Running requests may already have reached Jira; late results never recreate tasks.
+        next.requests.removeAll { ids.contains($0.taskID) && $0.state != .running }
         try commit(next)
     }
     public func refresh(resuming: Bool = false) {

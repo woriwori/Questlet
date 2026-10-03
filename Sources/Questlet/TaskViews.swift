@@ -5,11 +5,12 @@ import QuestletCore
 struct MainWindow: View {
     @EnvironmentObject var model: AppModel
     @EnvironmentObject var session: Session
+    @Environment(\.openSettings) var openSettings
     @State private var query = ""
     private let timer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
     var body: some View {
         VStack(spacing: 0) {
-            HStack { Brand(); Spacer(); Text(Dates.timestamp(Date()).prefix(10)).font(.system(size: 12)).foregroundStyle(Palette.secondary); IconButton(symbol: "plus", label: "새로 만들기", accent: true, size: 32) { session.route = .create } }.padding(.horizontal, 24).padding(.top, 18)
+            HStack { Brand(); Spacer(); Text(Dates.timestamp(Date()).prefix(10)).font(.system(size: 12)).foregroundStyle(Palette.secondary); IconButton(symbol: "gearshape", label: "설정", size: 32, glyph: 16) { openSettings() }; IconButton(symbol: "plus", label: "새로 만들기", accent: true, size: 32) { session.route = .create }.disabled(session.needsSetup) }.padding(.horizontal, 24).padding(.top, 18)
             HStack { Image(systemName: "magnifyingglass").foregroundStyle(Palette.secondary); TextField("제목, 티켓, 코멘트 검색", text: $query).textFieldStyle(.plain) }.padding(9).background(Palette.quiet, in: RoundedRectangle(cornerRadius: 6)).padding(.horizontal, 24).padding(.vertical, 16)
             Divider()
             HStack(spacing: 0) {
@@ -37,7 +38,7 @@ struct MainWindow: View {
         .onChange(of: session.filter) { _, value in if model.work(session.selected)?.status != value { session.selected = model.list(status: value, query: query).first?.id } }
         .onChange(of: query) { _, value in if !model.list(status: session.filter, query: value).contains(where: { $0.id == session.selected }) { session.selected = model.list(status: session.filter, query: value).first?.id } }
         .onReceive(timer) { _ in session.tick() }
-        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didWakeNotification)) { _ in model.refresh(resuming: true) }
+        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didWakeNotification)) { _ in session.resume() }
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in session.tick() }
         .alert("처리하지 못했습니다", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("확인") { model.error = nil } } message: { Text(model.error ?? "") }
     }
@@ -56,7 +57,7 @@ struct TaskRow: View {
             VStack(alignment: .leading, spacing: compact ? 3 : 5) {
                 HStack(alignment: .top) {
                     Text(task.title).font(.system(size: compact ? 12 : 14, weight: .semibold)).frame(maxWidth: .infinity, alignment: .leading).allowsHitTesting(false)
-                    if compact { IconButton(symbol: "pencil", label: "\(task.title) 수정", size: 24, glyph: 13) { session.choose(task); openWindow(id: "main"); NSApp.activate(ignoringOtherApps: true); session.route = .edit(task.id) }.disabled(model.busy(task.id)) }
+                    if compact { IconButton(symbol: "pencil", label: "\(task.title) 수정", size: 24, glyph: 13) { session.choose(task); openWindow(id: "main"); NSApp.activate(ignoringOtherApps: true); session.route = .edit(task.id) }.disabled(model.busy(task.id) || session.needsSetup) }
                 }
                 HStack(spacing: 10) {
                     if task.ticket.isEmpty { Text("티켓 없음").foregroundStyle(Palette.secondary).allowsHitTesting(false) } else { TicketLink(ticket: task.ticket) }
@@ -81,7 +82,7 @@ struct TaskDetail: View {
                 HStack(alignment: .top, spacing: 8) {
                     Text(task.title).font(.system(size: 22, weight: .semibold)); CommentCount(count: task.comments.count).font(.system(size: 12)).padding(.top, 6)
                     Spacer(minLength: 4)
-                    IconButton(symbol: "pencil", label: "제목 · 티켓 · 기간 수정") { session.route = .edit(task.id) }.disabled(model.busy(task.id))
+                    IconButton(symbol: "pencil", label: "제목 · 티켓 · 기간 수정") { session.route = .edit(task.id) }.disabled(model.busy(task.id) || session.needsSetup)
                     IconButton(symbol: "trash", label: "로컬 작업 삭제") { deletion = true }
                 }
                 ViewThatFits(in: .horizontal) {
@@ -145,11 +146,11 @@ struct MenuPopover: View {
     @State private var filter: TaskStatus = .inProgress
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack { Brand(compact: true); Spacer(); AppOpenButton { show() }; IconButton(symbol: "plus", label: "새로 만들기", accent: true) { show(); session.route = .create } }.padding(.horizontal, 8)
+            HStack { Brand(compact: true); Spacer(); AppOpenButton { show() }; IconButton(symbol: "plus", label: "새로 만들기", accent: true) { show(); session.route = .create }.disabled(session.needsSetup) }.padding(.horizontal, 8)
             StatusTabs(value: $filter)
             ScrollView { LazyVStack(spacing: 2) { ForEach(model.list(status: filter)) { task in TaskRow(task: task, compact: true) { session.choose(task); show() } }; if model.list(status: filter).isEmpty { Text("이 상태에 해당하는 작업이 없습니다.").font(.system(size: 12)).foregroundStyle(Palette.secondary).padding(.vertical, 20) } } }.frame(height: min(330, max(64, CGFloat(model.list(status: filter).count) * 84)))
         }.padding(9).frame(width: 340).background(Palette.surface)
-        .onAppear { filter = .inProgress; model.refresh() }
+        .onAppear { filter = .inProgress; if !session.needsSetup { model.refresh() } }
         .contextMenu { Button("설정…") { openSettings() }; Button("Questlet 종료") { NSApp.terminate(nil) } }
     }
     private func show() { openWindow(id: "main"); NSApp.activate(ignoringOtherApps: true) }

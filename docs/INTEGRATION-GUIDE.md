@@ -17,6 +17,8 @@ Jira 연동을 사내 AI에게 맡길 때는 [구현 프롬프트](prompts/JIRA-
 | Sources/QuestletCore/AppModel.swift | SQLite 저장, Jira 요청 순서·부분 성공·실패·복구·재시도. run → jira.execute |
 | Sources/Questlet/CreationForm.swift | SRD/RP 입력과 생성 대기·결과. generate → srd.generate / rp.generate |
 | Sources/Questlet/Resources/RoleOptions.json | role 선택지 추가. UI 변경 불필요 |
+| Sources/QuestletCore/TokenVault.swift | 최초 설정/교체된 Jira·emux PAT를 키체인에서 읽는 provider. 요청마다 load하여 최신 값 사용 |
+| Sources/Questlet/SettingsView.swift | 최초 PAT 폼, 설정, 완료 작업 로컬 일괄 삭제 |
 | Sources/QuestletCore/Database.swift | 작업과 요청을 하나의 SQLite 트랜잭션으로 저장 |
 
 ## 삽입 순서
@@ -35,9 +37,9 @@ var rp: any RPGenerationModule { CompanyRPGenerationAdapter() }
 // 회사 설정/자격 정보가 필요하면 위 생성자와 adapter에 인자를 추가한다.
 ```
 
-현재 Company adapter는 configuration 실패를 반환하는 삽입용 골격이다. 실제 호출 코드를 채우기 전에 주입값만 바꾸면 성공하지 않는다. 운영 토큰은 소스·문서·일반 DB에 기록하지 말고 사내 자격 정보 저장 방식에 맞춘다.
+현재 Company adapter는 configuration 실패를 반환하는 삽입용 골격이다. 실제 호출 코드를 채우기 전에 주입값만 바꾸면 성공하지 않는다. PAT 설정 UI와 키체인 저장은 이미 구현되어 있다. IntegrationAssembly.tokenVault를 회사 adapter에 주입하고 요청마다 load().jira를 읽어 인증에 사용한다. emux PAT는 load().emux이며 이번 Jira 직접 연동의 대체 인증 값으로 사용하지 않는다. provider를 통해 최신 값을 읽어야 설정에서 교체한 PAT가 다음 요청/재시도에 반영된다. 토큰을 JiraRequest에 포함하면 SQLite에 영속화되므로 request 타입에 인증 값을 넣지 않는다. 소스·문서·일반 DB에도 기록하지 않는다.
 
-UI에서 보이는 “모의 Jira” 안내도 실연동 연결 시 변경한다. `rg '모의 Jira|모의 연동' Sources/Questlet`로 찾을 수 있다. 연결 여부를 위한 별도 공통 framework는 필요하지 않다.
+UI에서 보이는 “모의 Jira” 안내도 실연동 연결 시 변경한다. `rg '모의 Jira|모의 연동|현재 연동|토큰의 유효성' Sources/Questlet`로 찾을 수 있다. 연결 여부를 위한 별도 공통 framework는 필요하지 않다.
 
 ## 기능별 실제 implementation
 

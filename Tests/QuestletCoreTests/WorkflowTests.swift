@@ -1,5 +1,6 @@
 import Foundation
 import QuestletCore
+import Security
 
 actor RecordingJira: JiraTicketModule {
     var calls: [JiraRequest] = []
@@ -97,6 +98,49 @@ actor RecordingJira: JiraTicketModule {
         assert(rpResult.simulated)
         if case .success = await rp.generate(RPRequest(roles: ["a", "a"], prdURL: URL(string: "https://example.com/prd")!)) { assertionFailure("role 중복 허용") }
         assert(model.tasks.isEmpty)
+        try tokenVaultChecks()
+        try bulkCleanupChecks(root: root)
+    }
+    static func tokenVaultChecks() throws {
+        let service = "local.questlet.tests.\(UUID())"
+        defer { SecItemDelete([kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service] as CFDictionary) }
+        let vault = KeychainTokenVault(service: service)
+        let initial = try vault.load(); assert(!initial.configured)
+        do { try vault.update(jira: "test-jira", emux: ""); assertionFailure("첫 설정에서 emux 누락 허용") } catch {}
+        let unchanged = try vault.load(); assert(!unchanged.configured)
+        try vault.update(jira: " test-jira-first ", emux: "test-emux-first")
+        let reloaded = KeychainTokenVault(service: service)
+        let loaded = try reloaded.load(); assert(loaded.configured)
+        try reloaded.update(jira: "test-jira-rotated", emux: "")
+        let changed = try vault.load()
+        assert(changed.jira == "test-jira-rotated" && changed.emux == "test-emux-first")
+        try reloaded.update(jira: "", emux: "test-emux-rotated")
+        let changedAgain = try vault.load()
+        assert(changedAgain.jira == "test-jira-rotated" && changedAgain.emux == "test-emux-rotated")
+        print("Keychain initial setup, reload and PAT rotation checks passed")
+    }
+    static func bulkCleanupChecks(root: URL) throws {
+        let db = try Database(url: root.appendingPathComponent("bulk.sqlite"))
+        var closed = WorkItem(title: "삭제 완료", ticket: "TEST-1", start: "2026-10-01", end: "2026-10-02", today: "2026-10-03")
+        closed.comments = [Comment(body: "함께 삭제할 메모", recordedAt: Dates.date("2026-10-02")!)]
+        var stale = WorkItem(title: "오늘 재계산", start: "2026-10-01", end: "2026-10-02", today: "2026-10-02")
+        stale.status = .inProgress
+        let active = WorkItem(title: "종료일 당일은 유지", start: "2026-10-01", end: "2026-10-03", today: "2026-10-03")
+        let future = WorkItem(title: "예정 유지", start: "2026-10-04", end: "2026-10-05", today: "2026-10-03")
+        var saved = Snapshot(); saved.tasks = [closed, stale, active, future]
+        var running = PendingRequest(taskID: closed.id, request: JiraRequest(ticketKey: "TEST-1", mutation: .setStatus(.closed)), automatic: false)
+        running.state = .running
+        let pending = PendingRequest(taskID: closed.id, request: JiraRequest(ticketKey: "TEST-1", mutation: .setDates(startDate: closed.start, endDate: closed.end)), automatic: false)
+        saved.requests = [running, pending]
+        try db.save(saved)
+        let model = try AppModel(database: db, jira: RecordingJira(), now: { Dates.date("2026-10-03")! })
+        let removed = try model.deleteClosed()
+        assert(removed == 2 && model.tasks.map { $0.id } == [active.id, future.id])
+        assert(model.snapshot.requests.count == 1 && model.snapshot.requests[0].state == .running)
+        let persisted = try Database(url: db.url).load()
+        assert(persisted.tasks.flatMap { $0.comments }.isEmpty && persisted.tasks.count == 2)
+        let again = try model.deleteClosed(); assert(again == 0)
+        print("Bulk Closed cleanup, date boundary and persistence checks passed")
     }
 }
 

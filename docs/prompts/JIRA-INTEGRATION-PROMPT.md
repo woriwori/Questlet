@@ -24,7 +24,8 @@ Questlet의 Jira mock을 실제 사내 Jira 직접 호출로 교체해 주세요
 | Sources/QuestletCore/MockAdapters.swift | 기존 mock과 실패 시나리오 |
 | Sources/Questlet/Integrations/CompanyAdapters.swift | CompanyJiraTicketAdapter.execute의 구현 골격 |
 | Sources/Questlet/IntegrationAssembly.swift | jira adapter 주입; srd/rp 주입은 mock 유지 |
-| Sources/Questlet/QuestletApp.swift, Sources/Questlet/TaskViews.swift | 설정, Jira browse 링크, 모의 연동 안내 문구 |
+| Sources/QuestletCore/TokenVault.swift, Sources/Questlet/SettingsView.swift | 이미 구현된 Jira·emux PAT 최초 설정/교체와 키체인 provider, 설정 안내 |
+| Sources/Questlet/QuestletApp.swift, Sources/Questlet/TaskViews.swift | 최초 실행 판별, 톱니바퀴, Jira browse 링크, 모의 연동 안내 문구 |
 | Tests/QuestletCoreTests/WorkflowTests.swift, scripts/check.sh, scripts/check-ui.sh | 기존 검증과 빌드 방법 |
 
 완료 기준: 날짜·상태·코멘트 요청이 각각 어디서 만들어지고, 실패해도 어떤 로컬 정보가 남는지 실제 코드에서 확인했습니다.
@@ -40,7 +41,7 @@ Questlet의 Jira mock을 실제 사내 Jira 직접 호출로 교체해 주세요
 - 코멘트 본문 형식과 코멘트 ID·요청 결과를 확인하는 방법, 중복 방지 지원 여부.
 - 직접 열 때 사용할 Jira browse 주소와 **수정해도 되는 테스트 티켓**.
 
-토큰 값은 사용자가 사내 컴퓨터의 승인된 로컬 자격 정보 저장소에 직접 설정하도록 안내하세요. 소스·일반 SQLite·커밋·문서·로그에 토큰을 넣지 마세요. 진단 메시지도 인증 헤더와 비밀값을 제외합니다. 날짜·상태 설정은 adapter에 주입하고, 자격 정보는 사내 저장 방식에 맞춘 provider로 읽으세요. 회사 값이 없으면 실행 시 설명 가능한 configuration 실패를 반환하세요.
+PAT 설정은 이미 구현되어 있습니다. 사용자가 최초 실행 화면이나 톱니바퀴 설정에서 직접 입력하면 macOS 키체인에 저장됩니다. IntegrationAssembly.tokenVault를 CompanyJiraTicketAdapter에 주입하고 매 요청마다 load().jira로 최신 Jira PAT를 읽으세요. emux PAT(load().emux)는 별도로 보존하며 이번 Jira 직접 연동에 대신 사용하지 않습니다. 토큰 교체 후 다음 요청/재시도에 새 값이 적용되어야 합니다. 최초 설정 화면을 다시 만들거나 별도 토큰 저장소를 추가할 필요는 없습니다. 소스·일반 SQLite·커밋·문서·로그에 토큰을 넣지 마세요. 진단 메시지도 인증 헤더와 비밀값을 제외합니다. 날짜·상태 설정은 adapter에 주입하고, 자격 정보는 기존 TokenVault로 읽고 JiraRequest에는 토큰을 넣지 마세요. JiraRequest는 SQLite에 저장됩니다. 회사 값이 없으면 실행 시 설명 가능한 configuration 실패를 반환하세요.
 
 완료 기준: 실제 연결 설정과 각 mutation의 Jira 대응을 확인했거나, 확인 불가 항목을 명시했습니다. 예시 티켓 CMGSL-13332는 테스트 허가가 아닙니다. 실제 쓰기 검증은 사용자가 지정한 테스트 티켓으로만 수행하세요.
 
@@ -56,9 +57,9 @@ CompanyJiraTicketAdapter가 기존 `JiraTicketModule.execute`를 구현하도록
 
 기본 HTTP 호출에는 Foundation URLSession을 우선 사용하고, 회사에 이미 정해진 호출 도구가 있으면 그 규격에 맞추세요. 인증·HTTP/스크립트 호출·필드/상태 매핑·응답 변환은 adapter 내부에서 처리합니다. UI에 회사 응답 JSON이나 transition 조회 절차를 노출하지 마세요.
 
-구현이 준비되면 IntegrationAssembly의 `jira`만 CompanyJiraTicketAdapter로 바꾸세요. 테스트에서 MockJiraTicketAdapter를 주입하는 구조는 유지합니다. 실제 모드에서 TaskViews의 “모의 Jira” 문구와 SettingsView의 “현재 모든 외부 연동은 mock” 안내를 정확하게 바꾸고, mock 시나리오 설정이 SRD/RP에만 적용됨을 표시하세요. 티켓 링크는 기존 browse 설정을 사용합니다.
+구현이 준비되면 IntegrationAssembly의 `jira`만 CompanyJiraTicketAdapter로 바꾸세요. 테스트에서 MockJiraTicketAdapter를 주입하는 구조는 유지합니다. 실제 모드에서 TaskViews의 “모의 Jira” 문구와 SettingsView의 “현재 Jira·SRD·RP는 모두 mock” 안내와 TokenConfigurationForm의 “토큰의 유효성은 실제 API 연결 후 확인” 안내를 정확하게 바꾸고, mock 시나리오 설정이 SRD/RP에만 적용됨을 표시하세요. 티켓 링크는 기존 browse 설정을 사용합니다.
 
-완료 기준: 앱의 기존 저장·수정·코멘트 경로가 실제 adapter를 호출하며, SRD/RP는 기존 mock을 호출합니다. 네트워크 대기 중 UI는 응답하고 앱은 실제 Jira 결과를 상세 화면에 표시합니다.
+완료 기준: 설정에서 Jira PAT를 교체한 뒤 새 요청/재시도에 새 인증 값이 반영되고, 앱의 기존 저장·수정·코멘트 경로가 실제 adapter를 호출하며, SRD/RP는 기존 mock을 호출합니다. 네트워크 대기 중 UI는 응답하고 앱은 실제 Jira 결과를 상세 화면에 표시합니다.
 
 ## 4. 저장·오류·재시도 동작 보존
 
