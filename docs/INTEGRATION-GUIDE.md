@@ -2,6 +2,8 @@
 
 작성일: 2026-10-03. 입력·출력의 기준은 [INTEGRATION-INTERFACES.md](INTEGRATION-INTERFACES.md), 동작의 기준은 [SPEC.md](SPEC.md)다.
 
+Jira 연동을 사내 AI에게 맡길 때는 [구현 프롬프트](prompts/JIRA-INTEGRATION-PROMPT.md)를 전달한다. SRD/RP는 mock으로 유지하고 Jira만 실제 호출로 교체하는 지시다.
+
 ## 실제 파일과 교체 지점
 
 네이티브 앱과 영속 저장·요청 실행을 구현했다. `docs/design/dayline-wireframe.html`은 검토용 시안이다. 실제 연결은 아래 Swift 코드에 넣는다.

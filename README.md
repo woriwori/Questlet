@@ -11,6 +11,7 @@ SwiftUI 네이티브 앱, 로컬 SQLite, 메뉴바 팝오버, 작업 폼·검색
 - [기준 명세](docs/SPEC.md)
 - [사내 연동 입력·출력 인터페이스](docs/INTEGRATION-INTERFACES.md)
 - [사내 implementation 삽입·mock 교체 가이드](docs/INTEGRATION-GUIDE.md)
+- [사내 AI에게 전달할 Jira 연동 구현 프롬프트](docs/prompts/JIRA-INTEGRATION-PROMPT.md)
 - [디자인 컨셉과 와이어프레임](docs/DESIGN-CONCEPT.md)
 - [검토용 화면 소스](docs/design/dayline-wireframe.html)
 - [용어집](GLOSSARY.md)
