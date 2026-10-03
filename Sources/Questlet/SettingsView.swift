@@ -5,6 +5,7 @@ import QuestletCore
 struct TokenConfigurationForm: View {
     let firstRun: Bool
     @EnvironmentObject var session: Session
+    @Environment(\.dismiss) private var dismiss
     @State private var jira = ""
     @State private var emux = ""
     @State private var message: String?
@@ -28,7 +29,7 @@ struct TokenConfigurationForm: View {
             if let error = error ?? session.credentialError { Text(error).font(.system(size: 12)).foregroundStyle(.red) }
             if let message { Text(message).font(.system(size: 12)).foregroundStyle(Palette.secondary) }
             HStack {
-                if firstRun { Button("앱 종료") { NSApp.terminate(nil) }.handCursor() }
+                if firstRun { Button("앱 종료") { session.requestSetupQuit(); dismiss() }.handCursor() }
                 Spacer()
                 Button(firstRun ? "설정 완료" : "토큰 업데이트") {
                     do {

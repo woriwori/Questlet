@@ -18,6 +18,7 @@ enum FormRoute: Identifiable {
     @Published var credentialError: String?
     @Published var scenario: MockScenario = .success
     @Published var jiraBase = UserDefaults.standard.string(forKey: "jiraBrowseBase") ?? ""
+    private var quittingSetup = false
     private var timer: Timer?
     private var wakeObserver: NSObjectProtocol?
     private var lastDay = Dates.day()
@@ -49,14 +50,24 @@ enum FormRoute: Identifiable {
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in Task { @MainActor in self?.tick(); self?.resume() } }
         timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in Task { @MainActor in self?.tick() } }
     }
+    func requestSetupQuit() {
+        // The form explicitly dismisses its sheet; terminate only after onDismiss.
+        // Keep background refresh blocked while setup is closing without credentials.
+        quittingSetup = true
+        needsSetup = false
+    }
+    func setupDidDismiss(terminate: (() -> Void)? = nil) {
+        guard quittingSetup else { return }
+        if let terminate { terminate() } else { NSApp.terminate(nil) }
+    }
     func saveTokens(jira: String, emux: String) throws {
         try integration.tokenVault.update(jira: jira, emux: emux)
         needsSetup = false; credentialError = nil
         model?.refresh(resuming: true)
     }
     func choose(_ task: WorkItem) { filter = task.status; selected = task.id }
-    func resume() { if !needsSetup { model?.refresh(resuming: true) } }
-    func tick() { guard !needsSetup else { return }; let day = Dates.day(); if day != lastDay { lastDay = day; model?.refresh() } }
+    func resume() { if !needsSetup && !quittingSetup { model?.refresh(resuming: true) } }
+    func tick() { guard !needsSetup && !quittingSetup else { return }; let day = Dates.day(); if day != lastDay { lastDay = day; model?.refresh() } }
     func openTicket(_ ticket: String) {
         guard let base = Validation.webURL(jiraBase) else { model?.error = "설정에서 사내 Jira browse 주소를 입력하세요. 예: https://회사주소/browse/"; return }
         NSWorkspace.shared.open(base.appendingPathComponent(ticket))
@@ -79,7 +90,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .preferredColorScheme(.light)
             .frame(minWidth: 780, minHeight: 620)
-            .sheet(isPresented: $session.needsSetup) { TokenConfigurationForm(firstRun: true).environmentObject(session).interactiveDismissDisabled() }
+            .sheet(isPresented: $session.needsSetup, onDismiss: { session.setupDidDismiss() }) { TokenConfigurationForm(firstRun: true).environmentObject(session).interactiveDismissDisabled() }
         }
         .defaultSize(width: 960, height: 700)
         .commands { CommandGroup(replacing: .newItem) { Button("새로 만들기") { session.route = .create }.keyboardShortcut("n").disabled(session.generating || session.needsSetup) } }

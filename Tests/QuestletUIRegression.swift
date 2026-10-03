@@ -33,7 +33,16 @@ struct FailingUITokenVault: TokenVault {
         let failedSetup = Session(databaseURL: directory.appendingPathComponent("failed.sqlite"), tokenVault: FailingUITokenVault())
         do { try failedSetup.saveTokens(jira: "ui-test-jira", emux: "ui-test-emux"); assertionFailure("저장 실패가 완료로 처리됨") } catch {}
         assert(failedSetup.needsSetup)
-        print("First-run, already-configured startup and failed-save checks passed")
+        var quitCalled = false
+        session.setupDidDismiss(terminate: { quitCalled = true })
+        assert(!quitCalled) // Saving tokens closes setup without quitting.
+        failedSetup.requestSetupQuit()
+        assert(!failedSetup.needsSetup)
+        failedSetup.setupDidDismiss(terminate: { quitCalled = true })
+        assert(quitCalled)
+        let nextFailedLaunch = Session(databaseURL: directory.appendingPathComponent("quit-relaunch.sqlite"), tokenVault: FailingUITokenVault())
+        assert(nextFailedLaunch.needsSetup) // Quit never saves credentials or completes setup.
+        print("First-run, failed-save and dismiss-before-quit checks passed")
         let model = session.model!
         _ = try model.save(id: nil, title: "팝오버 목록 확인", ticket: "", start: model.today, end: model.today)
         let hosting = NSHostingController(rootView: MenuPopover().environmentObject(model).environmentObject(session))
