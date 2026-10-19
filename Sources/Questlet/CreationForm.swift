@@ -21,19 +21,18 @@ struct CreationForm: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack { Text("새로 만들기").font(.system(size: 17, weight: .medium)); Spacer(); IconButton(symbol: "xmark", label: "닫기") { session.route = nil }.disabled(session.generating) }
-            HStack(spacing: 3) { ForEach(CreationTab.allCases, id: \.self) { value in Button { tab = value; error = nil; receipt = nil; unknown = false; requestID = UUID() } label: { Text(value.rawValue).font(.system(size: 12)).frame(maxWidth: .infinity).padding(.vertical, 7).contentShape(Rectangle()) }.buttonStyle(.plain).foregroundStyle(tab == value ? Color.white : Palette.secondary).background(tab == value ? Palette.accent : .clear, in: RoundedRectangle(cornerRadius: 5)).accessibilityAddTraits(tab == value ? .isSelected : []).disabled(session.generating).handCursor() } }
+            HStack(spacing: 3) { ForEach(CreationTab.allCases, id: \.self) { value in Button { changeTab(value) } label: { Text(value.rawValue).font(.system(size: 12)).frame(maxWidth: .infinity).padding(.vertical, 7).contentShape(Rectangle()) }.buttonStyle(.plain).foregroundStyle(tab == value ? Color.white : Palette.secondary).background(tab == value ? Palette.accent : .clear, in: RoundedRectangle(cornerRadius: 5)).accessibilityAddTraits(tab == value ? .isSelected : []).disabled(session.generating).handCursor() } }
                 .background(Color.white, in: RoundedRectangle(cornerRadius: 6))
                 .overlay(RoundedRectangle(cornerRadius: 6).stroke(Palette.line, lineWidth: 1))
             // Date cells already include 8pt below the visible date text.
-            formContent.padding(.bottom, tab == .task && error == nil ? -8 : 0)
-            Divider()
+            formContent.id(tab).padding(.bottom, tab == .task && error == nil ? -8 : 0)
             HStack {
                 Spacer()
                 Button(receipt == nil ? "취소" : "닫기") { session.route = nil }.disabled(session.generating).handCursor()
                 if receipt == nil {
                     Button(tab == .task ? "저장" : "생성") { if tab == .task { saveTask() } else { Task { await generate() } } }.buttonStyle(.borderedProminent).tint(Palette.ink).disabled(!complete || session.generating || unknown).handCursor()
                 }
-            }
+            }.padding(.top, 14)
         }.padding(22).frame(width: 440).background(Palette.surface).interactiveDismissDisabled(session.generating)
         .fixedSize(horizontal: false, vertical: true)
         .onDisappear { session.generating = false }
@@ -48,8 +47,8 @@ struct CreationForm: View {
                     Field(label: "제목", placeholder: "", value: $srdTitle, required: true)
                     Field(label: "상위 페이지 링크", placeholder: "https://...", value: $parent, required: true)
                 case .rp:
+                    Field(label: "PRD", placeholder: "https://…", value: $rpPRD, required: true)
                     RolePicker(options: session.integration.roles, selected: $roles)
-                    Field(label: "PRD", placeholder: "https://…", value: $rpPRD)
                 }
             }.disabled(session.generating || receipt != nil)
             if session.generating { HStack { ProgressView().controlSize(.small); Text("생성 중…").font(.system(size: 12)) } }
@@ -62,6 +61,13 @@ struct CreationForm: View {
                 }.padding(12).frame(maxWidth: .infinity, alignment: .leading).background(Palette.quiet, in: RoundedRectangle(cornerRadius: 6))
             }
         }
+    }
+    private func changeTab(_ value: CreationTab) {
+        guard value != tab else { return }
+        draft = TaskDraft()
+        srdPRD = ""; srdTitle = ""; parent = ""; rpPRD = ""; roles = []
+        lastInput = nil; error = nil; receipt = nil; unknown = false; requestID = UUID()
+        tab = value
     }
     private var complete: Bool {
         switch tab {
@@ -104,9 +110,9 @@ struct RolePicker: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             FieldLabel(label: "CMDB Role", required: true)
-            VStack(alignment: .leading, spacing: 6) {
-                if !selected.isEmpty { ChipLayout { ForEach(selected, id: \.self) { role in HStack(spacing: 4) { Text(role).font(.system(size: 12)); Button { selected.removeAll { $0 == role } } label: { Image(systemName: "xmark").font(.system(size: 9)) }.buttonStyle(.plain).accessibilityLabel("\(role) 제거").handCursor() }.padding(5).background(Palette.selected, in: RoundedRectangle(cornerRadius: 4)) } } }
-                RoleSearchField(text: $query, choose: { chooseActive() }, removeLast: { if !selected.isEmpty { selected.removeLast() } }, move: { delta in if !candidates.isEmpty { active = (active + delta + candidates.count) % candidates.count } }).frame(height: 22)
+            ChipLayout {
+                ForEach(selected, id: \.self) { role in HStack(spacing: 4) { Text(role).font(.system(size: 12)); Button { selected.removeAll { $0 == role } } label: { Image(systemName: "xmark").font(.system(size: 9)) }.buttonStyle(.plain).accessibilityLabel("\(role) 제거").handCursor() }.padding(5).background(Palette.selected, in: RoundedRectangle(cornerRadius: 4)) }
+                RoleSearchField(text: $query, choose: { chooseActive() }, removeLast: { if !selected.isEmpty { selected.removeLast() } }, move: { delta in if !candidates.isEmpty { active = (active + delta + candidates.count) % candidates.count } }).frame(width: 80, height: 22)
             }.padding(8).background(Palette.surface, in: RoundedRectangle(cornerRadius: 6)).overlay(RoundedRectangle(cornerRadius: 6).stroke(Palette.line))
             if !candidates.isEmpty {
                 TransientScrollView(revealRect: CGRect(x: 0, y: CGFloat(active) * 32, width: 1, height: 32)) {
