@@ -3,6 +3,8 @@ import AppKit
 import QuestletCore
 
 enum Palette {
+    static let sheetCornerRadius: CGFloat = 6
+    static let popoverCornerRadius: CGFloat = 4
     static let surface = Color(hex: 0xfcfcfc), quiet = Color(hex: 0xf4f5f6)
     static let line = Color(hex: 0xe5e7e9), ink = Color(hex: 0x282d33), secondary = Color(hex: 0x6e747c)
     static let selected = Color(hex: 0xedf1f4), accent = Color(hex: 0x56729a)

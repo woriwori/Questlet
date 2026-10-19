@@ -9,6 +9,7 @@ struct WorkCalendarSheet: View {
         WorkCalendarPanel(tasks: model.tasks, today: model.today, close: { dismiss() }) { task in
             session.choose(task); dismiss()
         }
+        .presentationCornerRadius(Palette.sheetCornerRadius)
     }
 }
 
@@ -124,5 +125,6 @@ struct CalendarTaskList: View {
             }
         }.frame(height: min(240, max(0, CGFloat(tasks.reduce(0) { $0 + ($1.ticket.isEmpty ? 28 : 44) }) - 4)))
             .padding(8).frame(width: 280).background(Palette.surface).foregroundStyle(Palette.ink)
+            .presentationCornerRadius(Palette.popoverCornerRadius)
     }
 }

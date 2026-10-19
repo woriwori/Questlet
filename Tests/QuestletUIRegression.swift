@@ -64,7 +64,7 @@ struct FailingUITokenVault: TokenVault {
                 ("접근성 검수", "CMGSL-13510", "2026-10-21"),
                 ("다음 배포 준비", "CMGSL-13512", "2026-10-22")
             ].map { WorkItem(title: $0.0, ticket: $0.1, start: $0.2, end: "2026-10-29", today: "2026-10-19") }
-            let view = NSHostingView(rootView: CalendarTaskList(tasks: samples, today: "2026-10-19", select: { _ in }).padding(10).background(Palette.quiet).preferredColorScheme(.light))
+            let view = NSHostingView(rootView: CalendarTaskList(tasks: samples, today: "2026-10-19", select: { _ in }).clipShape(RoundedRectangle(cornerRadius: Palette.popoverCornerRadius)).padding(10).background(Palette.quiet).preferredColorScheme(.light))
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 208), styleMask: [.borderless], backing: .buffered, defer: false)
             window.contentView = view
             view.layoutSubtreeIfNeeded()
@@ -91,7 +91,7 @@ struct FailingUITokenVault: TokenVault {
                 MainWindow().environmentObject(calendarModel).environmentObject(session)
                 Color.black.opacity(0.14)
                 WorkCalendarPanel(tasks: calendarModel.tasks, today: "2026-10-19", close: {}, select: { _ in })
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: Palette.sheetCornerRadius))
                     .shadow(color: .black.opacity(0.12), radius: 24, y: 10)
             }.frame(width: 960, height: 700).preferredColorScheme(.light)
             let view = NSHostingView(rootView: preview)

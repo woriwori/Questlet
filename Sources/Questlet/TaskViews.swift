@@ -186,6 +186,7 @@ struct MenuPopover: View {
             StatusTabs(value: $filter)
             ScrollView { LazyVStack(spacing: 2) { ForEach(model.list(status: filter)) { task in TaskRow(task: task, compact: true) { session.choose(task); show() } }; if model.list(status: filter).isEmpty { Text("이 상태에 해당하는 작업이 없습니다.").font(.system(size: 12)).foregroundStyle(Palette.secondary).padding(.vertical, 20) } } }.frame(height: min(330, max(64, CGFloat(model.list(status: filter).count) * 84)))
         }.padding(9).frame(width: 340).background(Palette.surface)
+        .presentationCornerRadius(Palette.sheetCornerRadius)
         .onAppear { filter = .inProgress; if !session.needsSetup { model.refresh() } }
         .contextMenu { Button("설정…") { openSettings() }; Button("Questlet 종료") { NSApp.terminate(nil) } }
     }

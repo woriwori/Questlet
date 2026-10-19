@@ -52,6 +52,7 @@ struct CreationForm: View {
                 }
             }
         }.padding(22).frame(width: 440).background(Palette.surface).interactiveDismissDisabled(session.generating)
+        .presentationCornerRadius(Palette.sheetCornerRadius)
         .onDisappear { session.generating = false }
     }
     private var complete: Bool {
