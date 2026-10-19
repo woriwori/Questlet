@@ -108,6 +108,7 @@ struct TaskRow: View {
     @EnvironmentObject var session: Session
     @EnvironmentObject var model: AppModel
     @Environment(\.openWindow) var openWindow
+    @State private var hovering = false
     var body: some View {
         ZStack(alignment: .topLeading) {
             Button(action: select) { Color.clear.contentShape(Rectangle()) }.buttonStyle(.plain).accessibilityLabel("\(task.title), 코멘트 \(task.comments.count)개").handCursor()
@@ -122,7 +123,8 @@ struct TaskRow: View {
                 }
                 Text("\(Dates.display(task.start)) — \(Dates.display(task.end))").monospacedDigit().foregroundStyle(Palette.secondary).allowsHitTesting(false)
             }.font(.system(size: compact ? 11 : 12)).padding(.horizontal, compact ? 9 : 10).padding(.vertical, compact ? 8 : 12)
-        }.background(!compact && session.selected == task.id ? Color(hex: 0xe0e2e5) : Color.clear, in: RoundedRectangle(cornerRadius: 7))
+        }.background(!compact && session.selected == task.id ? Color(hex: 0xe0e2e5) : hovering && !compact ? Color(hex: 0xe9ebed) : Color.clear, in: RoundedRectangle(cornerRadius: 7))
+        .onHover { hovering = $0 }
     }
 }
 

@@ -117,6 +117,7 @@ private struct CalendarDay: View {
 }
 
 struct CalendarTaskList: View {
+    @State private var hoveredTask: UUID?
     let tasks: [WorkItem]
     let today: String
     let select: (WorkItem) -> Void
@@ -143,6 +144,11 @@ struct CalendarTaskList: View {
                         }.padding(.horizontal, 4).frame(height: Self.rowHeight, alignment: .center).contentShape(Rectangle())
                     }
                     .buttonStyle(.plain).handCursor()
+                    .background(hoveredTask == task.id ? Palette.quiet : .clear, in: RoundedRectangle(cornerRadius: 4))
+                    .onHover { inside in
+                        if inside { hoveredTask = task.id }
+                        else if hoveredTask == task.id { hoveredTask = nil }
+                    }
                     .accessibilityLabel("\(status.label), \(task.title)\(task.ticket.isEmpty ? "" : ", \(task.ticket)")")
                 }
             }
