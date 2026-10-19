@@ -21,8 +21,8 @@ struct CreationForm: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack { Text("새로 만들기").font(.system(size: 17, weight: .medium)); Spacer(); IconButton(symbol: "xmark", label: "닫기") { session.route = nil }.disabled(session.generating) }
-            HStack(spacing: 3) { ForEach(CreationTab.allCases, id: \.self) { value in Button { tab = value; error = nil; receipt = nil; unknown = false; requestID = UUID() } label: { Text(value.rawValue).font(.system(size: 12)).frame(maxWidth: .infinity).padding(.vertical, 7).contentShape(Rectangle()) }.buttonStyle(.plain).background(tab == value ? Palette.selected : .clear, in: RoundedRectangle(cornerRadius: 5)).accessibilityAddTraits(tab == value ? .isSelected : []).disabled(session.generating).handCursor() } }
-                .background(Palette.quiet, in: RoundedRectangle(cornerRadius: 6))
+            HStack(spacing: 3) { ForEach(CreationTab.allCases, id: \.self) { value in Button { tab = value; error = nil; receipt = nil; unknown = false; requestID = UUID() } label: { Text(value.rawValue).font(.system(size: 12)).frame(maxWidth: .infinity).padding(.vertical, 7).contentShape(Rectangle()) }.buttonStyle(.plain).foregroundStyle(tab == value ? Color.white : Palette.secondary).background(tab == value ? Palette.accent : .clear, in: RoundedRectangle(cornerRadius: 5)).accessibilityAddTraits(tab == value ? .isSelected : []).disabled(session.generating).handCursor() } }
+                .background(Color.white, in: RoundedRectangle(cornerRadius: 6))
                 .overlay(RoundedRectangle(cornerRadius: 6).stroke(Palette.line, lineWidth: 1))
             formContent
             Divider()
