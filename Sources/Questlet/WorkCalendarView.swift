@@ -130,7 +130,7 @@ struct CalendarTaskList: View {
         min(240, max(0, CGFloat(tasks.reduce(0) { $0 + ($1.ticket.isEmpty ? 28 : 44) }) - 4)) + 16
     }
     var body: some View {
-        ScrollView {
+        TransientScrollView {
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(tasks) { task in
                     let status = Dates.status(start: task.start, end: task.end, today: today)

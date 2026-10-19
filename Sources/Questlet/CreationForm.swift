@@ -24,7 +24,7 @@ struct CreationForm: View {
             HStack(spacing: 3) { ForEach(CreationTab.allCases, id: \.self) { value in Button { tab = value; error = nil; receipt = nil; unknown = false; requestID = UUID() } label: { Text(value.rawValue).font(.system(size: 12)).frame(maxWidth: .infinity).padding(.vertical, 7).contentShape(Rectangle()) }.buttonStyle(.plain).background(tab == value ? Palette.selected : .clear, in: RoundedRectangle(cornerRadius: 5)).accessibilityAddTraits(tab == value ? .isSelected : []).disabled(session.generating).handCursor() } }
             ViewThatFits(in: .vertical) {
                 formContent.fixedSize(horizontal: false, vertical: true)
-                ScrollView { formContent }.defaultScrollAnchor(.top)
+                TransientScrollView { formContent }
             }
             Divider()
             HStack {

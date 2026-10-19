@@ -80,6 +80,23 @@ struct FailingUITokenVault: TokenVault {
             view.layoutSubtreeIfNeeded()
             RunLoop.main.run(until: Date().addingTimeInterval(0.2))
             view.displayIfNeeded()
+            func scrollViews(in node: NSView) -> [NSScrollView] {
+                (node as? NSScrollView).map { [$0] } ?? node.subviews.flatMap { scrollViews(in: $0) }
+            }
+            let actualScrollViews = scrollViews(in: view)
+            if let document = actualScrollViews.first?.documentView, let documentBitmap = document.bitmapImageRepForCachingDisplay(in: document.bounds) {
+                // Flush the nested hosting view before capturing the outer snapshot.
+                document.cacheDisplay(in: document.bounds, to: documentBitmap)
+                let hasText = stride(from: 0, to: documentBitmap.pixelsHigh, by: 8).contains { y in
+                    stride(from: 20, to: documentBitmap.pixelsWide, by: 8).contains { x in
+                        guard let color = documentBitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB) else { return false }
+                        return color.alphaComponent > 0.8 && color.redComponent < 0.5
+                    }
+                }
+                assert(hasText, "Scroll document did not render its task names")
+            }
+            assert(!actualScrollViews.isEmpty && actualScrollViews.allSatisfy { $0.scrollerStyle == .overlay && $0.autohidesScrollers && $0.verticalScroller?.scrollerStyle == .overlay })
+            print("Rendered tooltip uses native overlay/auto-hide scrollbars")
             let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds)!
             view.cacheDisplay(in: view.bounds, to: bitmap)
             try bitmap.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: CommandLine.arguments[argument + 1]))

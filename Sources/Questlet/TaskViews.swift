@@ -96,7 +96,7 @@ struct MainWindow: View {
     @ViewBuilder private func form(for route: FormRoute) -> some View {
         switch route {
         case .create: CreationForm()
-        case .edit(let id): if let task = model.work(id) { ScrollView { EditTaskForm(task: task) }.defaultScrollAnchor(.top) }
+        case .edit(let id): if let task = model.work(id) { TransientScrollView { EditTaskForm(task: task).environmentObject(model).environmentObject(session) } }
         }
     }
 }

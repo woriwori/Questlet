@@ -24,7 +24,6 @@ struct TaskFields: View {
             Field(label: "Jira 티켓 · 선택", placeholder: "예: CMGSL-13332", value: $draft.ticket)
             Text("작업 기간").font(.system(size: 12)).foregroundStyle(Palette.secondary)
             DateRangePicker(start: $draft.start, end: $draft.end, month: $draft.month)
-            Text(draft.end == Dates.day() ? "종료일을 오늘로 변경하면 내일부터 완료 상태가 됩니다." : "종료일 당일까지 진행 중으로 표시됩니다.").font(.system(size: 12)).foregroundStyle(Palette.secondary)
         }
     }
 }
@@ -42,7 +41,12 @@ struct DateRangePicker: View {
     private var monthTitle: String { let c = calendar.dateComponents([.year, .month], from: month); return "\(c.year!)년 \(c.month!)월" }
     var body: some View {
         VStack(spacing: 10) {
-            HStack(spacing: 10) { dateBox("시작일", start); dateBox("종료일", end) }
+            HStack(spacing: 10) {
+                Button { start = ""; end = "" } label: { dateBox("시작일", start) }
+                    .buttonStyle(.plain).handCursor().accessibilityLabel("시작일 다시 선택")
+                Button { end = "" } label: { dateBox("종료일", end) }
+                    .buttonStyle(.plain).handCursor().accessibilityLabel("종료일 다시 선택")
+            }
             HStack {
                 IconButton(symbol: "chevron.left", label: "이전 달") { changeMonth(-1) }
                 Spacer(); Text(monthTitle).font(.system(size: 13, weight: .medium)); Spacer()
@@ -68,7 +72,6 @@ struct DateRangePicker: View {
                     } else { Color.clear.frame(height: 30) }
                 }
             }
-            HStack { Text(start.isEmpty ? "시작일을 선택하세요" : end.isEmpty ? "종료일을 선택하세요" : "기간 선택 완료").font(.system(size: 11)).foregroundStyle(Palette.secondary); Spacer(); Button("기간 다시 선택") { start = ""; end = "" }.buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(Palette.secondary).handCursor() }
         }
     }
     private func changeMonth(_ value: Int) { if let next = calendar.date(byAdding: .month, value: value, to: month) { month = next } }
