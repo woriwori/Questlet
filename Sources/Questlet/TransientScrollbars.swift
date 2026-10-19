@@ -4,7 +4,10 @@ import AppKit
 // Own the NSScrollView so AppKit cannot replace these local overlay scrollbars with legacy ones.
 struct TransientScrollView<Content: View>: NSViewRepresentable {
     let content: Content
-    init(@ViewBuilder content: () -> Content) { self.content = content() }
+    let revealRect: CGRect?
+    init(revealRect: CGRect? = nil, @ViewBuilder content: () -> Content) {
+        self.revealRect = revealRect; self.content = content()
+    }
     func makeCoordinator() -> Coordinator { Coordinator(content) }
     func makeNSView(context: Context) -> OverlayScrollView {
         let scroll = OverlayScrollView()
@@ -28,12 +31,22 @@ struct TransientScrollView<Content: View>: NSViewRepresentable {
         context.coordinator.content = content
         context.coordinator.update()
         scroll.needsLayout = true
+        if context.coordinator.lastRevealRect != revealRect {
+            context.coordinator.lastRevealRect = revealRect
+            if let revealRect {
+                DispatchQueue.main.async { [weak scroll] in
+                    scroll?.layoutSubtreeIfNeeded()
+                    scroll?.documentView?.scrollToVisible(revealRect)
+                }
+            }
+        }
     }
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: OverlayScrollView, context: Context) -> CGSize? {
         CGSize(width: proposal.width ?? 280, height: proposal.height ?? 10)
     }
     final class Coordinator {
         var content: Content
+        var lastRevealRect: CGRect?
         var width: CGFloat = 280
         let host: NSHostingView<AnyView>
         init(_ content: Content) {

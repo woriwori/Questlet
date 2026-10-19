@@ -24,7 +24,8 @@ struct CreationForm: View {
             HStack(spacing: 3) { ForEach(CreationTab.allCases, id: \.self) { value in Button { tab = value; error = nil; receipt = nil; unknown = false; requestID = UUID() } label: { Text(value.rawValue).font(.system(size: 12)).frame(maxWidth: .infinity).padding(.vertical, 7).contentShape(Rectangle()) }.buttonStyle(.plain).foregroundStyle(tab == value ? Color.white : Palette.secondary).background(tab == value ? Palette.accent : .clear, in: RoundedRectangle(cornerRadius: 5)).accessibilityAddTraits(tab == value ? .isSelected : []).disabled(session.generating).handCursor() } }
                 .background(Color.white, in: RoundedRectangle(cornerRadius: 6))
                 .overlay(RoundedRectangle(cornerRadius: 6).stroke(Palette.line, lineWidth: 1))
-            formContent
+            // Date cells already include 8pt below the visible date text.
+            formContent.padding(.bottom, tab == .task && error == nil ? -8 : 0)
             Divider()
             HStack {
                 Spacer()
@@ -102,18 +103,17 @@ struct RolePicker: View {
     private var candidates: [String] { options.filter { !selected.contains($0) && (query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || $0.localizedCaseInsensitiveContains(query.trimmingCharacters(in: .whitespacesAndNewlines))) } }
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("role").font(.system(size: 12)).foregroundStyle(Palette.secondary)
+            Text("CMDB Role").font(.system(size: 12)).foregroundStyle(Palette.secondary)
             VStack(alignment: .leading, spacing: 6) {
                 if !selected.isEmpty { ChipLayout { ForEach(selected, id: \.self) { role in HStack(spacing: 4) { Text(role).font(.system(size: 12)); Button { selected.removeAll { $0 == role } } label: { Image(systemName: "xmark").font(.system(size: 9)) }.buttonStyle(.plain).accessibilityLabel("\(role) 제거").handCursor() }.padding(5).background(Palette.selected, in: RoundedRectangle(cornerRadius: 4)) } } }
                 RoleSearchField(text: $query, choose: { chooseActive() }, removeLast: { if !selected.isEmpty { selected.removeLast() } }, move: { delta in if !candidates.isEmpty { active = (active + delta + candidates.count) % candidates.count } }).frame(height: 22)
             }.padding(8).background(Palette.surface, in: RoundedRectangle(cornerRadius: 6)).overlay(RoundedRectangle(cornerRadius: 6).stroke(Palette.line))
             if !candidates.isEmpty {
-                ScrollViewReader { proxy in
-                    ScrollView(.vertical) {
-                        VStack(spacing: 0) { ForEach(Array(candidates.enumerated()), id: \.element) { index, role in Button { select(role) } label: { Text(role).font(.system(size: 12)).frame(maxWidth: .infinity, alignment: .leading).frame(height: 32).padding(.horizontal, 7).contentShape(Rectangle()) }.buttonStyle(.plain).background(active == index ? Palette.selected : Color.clear, in: RoundedRectangle(cornerRadius: 4)).id(index).handCursor() } }
-                    }.frame(height: min(CGFloat(candidates.count) * 32, 112)).scrollIndicators(.visible)
-                    .onChange(of: active) { _, value in proxy.scrollTo(value, anchor: .center) }
-                }.padding(4).background(Palette.quiet, in: RoundedRectangle(cornerRadius: 6))
+                TransientScrollView(revealRect: CGRect(x: 0, y: CGFloat(active) * 32, width: 1, height: 32)) {
+                    VStack(spacing: 0) { ForEach(Array(candidates.enumerated()), id: \.element) { index, role in Button { select(role) } label: { Text(role).font(.system(size: 12)).frame(maxWidth: .infinity, alignment: .leading).frame(height: 32).padding(.horizontal, 7).contentShape(Rectangle()) }.buttonStyle(.plain).background(active == index ? Palette.selected : Color.clear, in: RoundedRectangle(cornerRadius: 4)).id(index).handCursor() } }
+                }.frame(height: min(CGFloat(candidates.count) * 32, 112))
+                    .id(candidates)
+                    .padding(4).background(Palette.quiet, in: RoundedRectangle(cornerRadius: 6))
             }
         }.onChange(of: query) { _, _ in active = 0 }
     }
@@ -130,7 +130,7 @@ struct RoleSearchField: NSViewRepresentable {
     func makeNSView(context: Context) -> NSTextField {
         let field = NSTextField(); field.isBordered = false; field.drawsBackground = false
         field.placeholderString = "cmg 또는 valley 검색"; field.font = .systemFont(ofSize: 13)
-        field.delegate = context.coordinator; field.setAccessibilityLabel("role 검색")
+        field.delegate = context.coordinator; field.setAccessibilityLabel("CMDB Role 검색")
         return field
     }
     func updateNSView(_ field: NSTextField, context: Context) { context.coordinator.parent = self; field.isEnabled = enabled; if field.stringValue != text { field.stringValue = text } }

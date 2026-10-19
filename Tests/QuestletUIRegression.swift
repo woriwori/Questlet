@@ -64,6 +64,17 @@ struct FailingUITokenVault: TokenVault {
         func scrollViews(in node: NSView) -> [NSScrollView] {
             (node as? NSScrollView).map { [$0] } ?? node.subviews.flatMap { scrollViews(in: $0) }
         }
+        let roleScroll = NSHostingView(rootView: TransientScrollView(revealRect: CGRect(x: 0, y: 160, width: 1, height: 32)) {
+            VStack(spacing: 0) { ForEach(0..<6) { index in Text("cmg_role_\(index)").frame(height: 32) } }
+        }.frame(width: 240, height: 112))
+        let roleWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 240, height: 112), styleMask: [.borderless], backing: .buffered, defer: false)
+        roleWindow.contentView = roleScroll
+        roleScroll.layoutSubtreeIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.2))
+        let roleNative = scrollViews(in: roleScroll)[0]
+        assert(roleNative.scrollerStyle == .overlay && roleNative.autohidesScrollers && roleNative.verticalScroller?.controlSize == .small)
+        assert(roleNative.contentView.bounds.minY > 0 && roleNative.contentView.bounds.maxY >= 192, "Keyboard candidate was not revealed: \(roleNative.contentView.bounds)")
+        print("Role candidates: thin auto-hide overlay scrollbar and offscreen keyboard selection reveal passed")
         let form = NSHostingController(rootView: CreationForm().environmentObject(model).environmentObject(session))
         let formSize = form.sizeThatFits(in: CGSize(width: 440, height: 672))
         form.view.frame.size = formSize
