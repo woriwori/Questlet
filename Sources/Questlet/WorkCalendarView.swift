@@ -67,7 +67,7 @@ private struct CalendarDay: View {
     @State private var showingTasks = false
     private func status(_ task: WorkItem) -> TaskStatus { Dates.status(start: task.start, end: task.end, today: today) }
     private var tooltip: String {
-        ([Dates.display(day)] + (tasks.isEmpty ? ["작업 없음"] : tasks.map { "\(status($0).label): \($0.title)" })).joined(separator: "\n")
+        (tasks.isEmpty ? ["작업 없음"] : tasks.map { "\(status($0).label): \($0.title)" }).joined(separator: "\n")
     }
     var body: some View {
         Button { if !tasks.isEmpty { showingTasks = true } } label: {
@@ -89,27 +89,40 @@ private struct CalendarDay: View {
         .background(hovering ? Palette.quiet : .clear, in: RoundedRectangle(cornerRadius: 4))
         .overlay(alignment: .topLeading) { Rectangle().fill(Palette.line).frame(height: 0.75).padding(.trailing, 4).allowsHitTesting(false) }
         .onHover { hovering = $0 }.handCursor().help(tooltip)
-        .accessibilityLabel(tooltip)
+        .accessibilityLabel("\(Dates.display(day)), \(tooltip)")
         .accessibilityHint(tasks.isEmpty ? "작업 없음" : "작업 목록 열기")
         .popover(isPresented: $showingTasks) {
-            VStack(alignment: .leading, spacing: 12) {
-                Text(Dates.display(day)).font(.system(size: 12, weight: .semibold)).foregroundStyle(Palette.secondary)
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 4) {
-                        ForEach(tasks) { task in
-                            Button { showingTasks = false; select(task) } label: {
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(task.title).font(.system(size: 13, weight: .medium)).fixedSize(horizontal: false, vertical: true)
-                                    HStack(spacing: 6) {
-                                        Text(status(task).label)
-                                        if !task.ticket.isEmpty { Text(task.ticket) }
-                                    }.font(.system(size: 11)).foregroundStyle(Palette.secondary)
-                                }.frame(maxWidth: .infinity, alignment: .leading).padding(8).contentShape(Rectangle())
-                            }.buttonStyle(.plain).handCursor()
-                        }
-                    }
-                }.frame(height: min(240, CGFloat(tasks.count) * 64))
-            }.padding(16).frame(width: 280).background(Palette.surface)
+            CalendarTaskList(tasks: tasks, today: today) { task in
+                showingTasks = false; select(task)
+            }
         }
+    }
+}
+
+struct CalendarTaskList: View {
+    let tasks: [WorkItem]
+    let today: String
+    let select: (WorkItem) -> Void
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(tasks) { task in
+                    let status = Dates.status(start: task.start, end: task.end, today: today)
+                    Button { select(task) } label: {
+                        HStack(alignment: .top, spacing: 9) {
+                            RoundedRectangle(cornerRadius: 1).fill(Palette.status(status).opacity(0.7))
+                                .frame(width: 2, height: task.ticket.isEmpty ? 16 : 28).padding(.top, 2)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(task.title).font(.system(size: 13, weight: .medium)).fixedSize(horizontal: false, vertical: true)
+                                if !task.ticket.isEmpty { Text(task.ticket).font(.system(size: 11)).foregroundStyle(Palette.secondary) }
+                            }.frame(maxWidth: .infinity, alignment: .leading)
+                        }.padding(4).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain).handCursor()
+                    .accessibilityLabel("\(status.label), \(task.title)\(task.ticket.isEmpty ? "" : ", \(task.ticket)")")
+                }
+            }
+        }.frame(height: min(240, max(0, CGFloat(tasks.reduce(0) { $0 + ($1.ticket.isEmpty ? 28 : 44) }) - 4)))
+            .padding(8).frame(width: 280).background(Palette.surface).foregroundStyle(Palette.ink)
     }
 }

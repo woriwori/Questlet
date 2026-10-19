@@ -57,6 +57,24 @@ struct FailingUITokenVault: TokenVault {
             assert(abs(fitting.width - 600) < 1 && abs(fitting.height - expectedHeight) < 1, "Calendar has unexpected whitespace: \(fitting)")
         }
         print("Calendar layout: 600pt width, 4/5/6 weeks and 36pt bottom padding passed")
+        if let argument = CommandLine.arguments.firstIndex(of: "--render-tooltip"), CommandLine.arguments.count > argument + 1 {
+            let samples = [
+                ("캠페인 수정 버그픽스", "CMGSL-13332", "2026-10-15"),
+                ("검색 필터 상태 유지", "CMGSL-13405", "2026-10-16"),
+                ("접근성 검수", "CMGSL-13510", "2026-10-21"),
+                ("다음 배포 준비", "CMGSL-13512", "2026-10-22")
+            ].map { WorkItem(title: $0.0, ticket: $0.1, start: $0.2, end: "2026-10-29", today: "2026-10-19") }
+            let view = NSHostingView(rootView: CalendarTaskList(tasks: samples, today: "2026-10-19", select: { _ in }).padding(10).background(Palette.quiet).preferredColorScheme(.light))
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 208), styleMask: [.borderless], backing: .buffered, defer: false)
+            window.contentView = view
+            view.layoutSubtreeIfNeeded()
+            RunLoop.main.run(until: Date().addingTimeInterval(0.2))
+            view.displayIfNeeded()
+            let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds)!
+            view.cacheDisplay(in: view.bounds, to: bitmap)
+            try bitmap.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: CommandLine.arguments[argument + 1]))
+            print("Compact calendar tooltip rendered")
+        }
         if let argument = CommandLine.arguments.firstIndex(of: "--render-calendar"), CommandLine.arguments.count > argument + 1 {
             // Render only synthetic tasks in an isolated database; never the user's window/data.
             let calendarModel = try AppModel(database: Database(url: directory.appendingPathComponent("calendar.sqlite")), jira: session.integration.jira, now: { Dates.date("2026-10-19")! })
