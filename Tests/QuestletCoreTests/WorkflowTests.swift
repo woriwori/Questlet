@@ -28,6 +28,21 @@ actor RecordingJira: JiraTicketModule {
     static func run() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("questlet-check-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
+        let leapMonth = WorkCalendar(containing: Dates.date("2028-02-10")!)
+        assert(leapMonth.days.count == 42 && leapMonth.days.compactMap { $0 }.count == 29)
+        assert(leapMonth.days[2] == "2028-02-01" && leapMonth.days[30] == "2028-02-29")
+        let december = WorkCalendar(containing: Dates.date("2026-12-31")!)
+        assert(Dates.day(december.moving(1)) == "2027-01-01")
+        assert(Dates.day(december.moving(-1)) == "2026-11-01")
+        let spanning = WorkItem(title: "월 경계 작업", start: "2026-09-30", end: "2026-10-02", today: "2026-10-19")
+        assert(spanning.status == .closed)
+        for day in ["2026-09-30", "2026-10-01", "2026-10-02"] {
+            assert(WorkCalendar.tasks(on: day, from: [spanning]).map(\.id) == [spanning.id])
+        }
+        for day in ["2026-09-29", "2026-10-03"] { assert(WorkCalendar.tasks(on: day, from: [spanning]).isEmpty) }
+        assert(WorkCalendar(containing: Dates.date("2026-02-01")!).days.first! == "2026-02-01")
+        assert(WorkCalendar.tasks(on: "2026-10-01", from: []).isEmpty)
+        print("Calendar leap year, six weeks, Sunday alignment, month navigation and inclusive periods passed")
         let sortDB = try Database(url: root.appendingPathComponent("sort.sqlite"))
         var sortData = Snapshot()
         sortData.tasks = [

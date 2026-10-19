@@ -4,7 +4,7 @@
 
 ## 프로젝트 상태
 
-SwiftUI 네이티브 앱, 로컬 SQLite, 메뉴바 팝오버, 작업 폼·검색·코멘트, SRD/RP 생성 폼을 구현했다. 외부 연동은 모두 mock이며 사내 구현 삽입 지점은 별도 문서에 정리했다.
+SwiftUI 네이티브 앱, 로컬 SQLite, 메뉴바 팝오버, 작업 폼·검색·정렬·코멘트, 월간 캘린더, SRD/RP 생성 폼을 구현했다. 외부 연동은 모두 mock이며 사내 구현 삽입 지점은 별도 문서에 정리했다.
 
 ## 문서
 
@@ -13,6 +13,7 @@ SwiftUI 네이티브 앱, 로컬 SQLite, 메뉴바 팝오버, 작업 폼·검색
 - [사내 implementation 삽입·mock 교체 가이드](docs/INTEGRATION-GUIDE.md)
 - [사내 AI에게 전달할 Jira 연동 구현 프롬프트](docs/prompts/JIRA-INTEGRATION-PROMPT.md)
 - [디자인 컨셉과 와이어프레임](docs/DESIGN-CONCEPT.md)
+- [월간 캘린더 디자인과 동작](docs/design/CALENDAR.md)
 - [검토용 화면 소스](docs/design/dayline-wireframe.html)
 - [용어집](GLOSSARY.md)
 - [인터뷰와 결정 기록](docs/DESIGN-NOTES.md)

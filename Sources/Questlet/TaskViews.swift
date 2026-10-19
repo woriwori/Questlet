@@ -9,11 +9,12 @@ struct MainWindow: View {
     @State private var query = ""
     @State private var sort: TaskSortField = .title
     @State private var ascending = true
+    @State private var showingCalendar = false
     private var visibleTasks: [WorkItem] { model.list(status: session.filter, query: query, sort: sort, ascending: ascending) }
     private let timer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
     var body: some View {
         VStack(spacing: 0) {
-            HStack { Brand(); Spacer(); Text(Dates.timestamp(Date()).prefix(10)).font(.system(size: 12)).foregroundStyle(Palette.secondary); IconButton(symbol: "gearshape", label: "설정", size: 32, glyph: 16) { openSettings() }; IconButton(symbol: "plus", label: "새로 만들기", accent: true, size: 32) { session.route = .create }.disabled(session.needsSetup) }.padding(.horizontal, 24).padding(.top, 18)
+            HStack { Brand(); Spacer(); Text(Dates.timestamp(Date()).prefix(10)).font(.system(size: 12)).foregroundStyle(Palette.secondary); IconButton(symbol: "calendar", label: "캘린더", size: 32, glyph: 16) { showingCalendar = true }.disabled(session.needsSetup); IconButton(symbol: "gearshape", label: "설정", size: 32, glyph: 16) { openSettings() }; IconButton(symbol: "plus", label: "새로 만들기", accent: true, size: 32) { session.route = .create }.disabled(session.needsSetup) }.padding(.horizontal, 24).padding(.top, 18)
             HStack { Image(systemName: "magnifyingglass").foregroundStyle(Palette.secondary); TextField("제목, 티켓, 코멘트 검색", text: $query).textFieldStyle(.plain) }.padding(9).background(Palette.quiet, in: RoundedRectangle(cornerRadius: 6)).padding(.horizontal, 24).padding(.vertical, 16)
             Divider()
             HStack(spacing: 0) {
@@ -53,6 +54,7 @@ struct MainWindow: View {
             }
         }
         .background(Palette.surface)
+        .sheet(isPresented: $showingCalendar) { WorkCalendarSheet().environmentObject(model).environmentObject(session) }
         .sheet(item: $session.route) { route in
             switch route {
             case .create: CreationForm().environmentObject(model).environmentObject(session)

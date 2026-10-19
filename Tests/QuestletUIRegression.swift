@@ -51,6 +51,37 @@ struct FailingUITokenVault: TokenVault {
         // Header + tabs alone fit in ~90pt. A task must contribute a visible list region.
         guard size.height >= 150 else { print("FAIL: task list collapsed below tabs"); exit(1) }
         print("Popover layout check passed")
+        if let argument = CommandLine.arguments.firstIndex(of: "--render-calendar"), CommandLine.arguments.count > argument + 1 {
+            // Render only synthetic tasks in an isolated database; never the user's window/data.
+            let calendarModel = try AppModel(database: Database(url: directory.appendingPathComponent("calendar.sqlite")), jira: session.integration.jira, now: { Dates.date("2026-10-19")! })
+            for (title, start, end) in [
+                ("캠페인 수정 버그픽스", "2026-10-15", "2026-10-23"),
+                ("추천 영역 접근성 개선", "2026-10-19", "2026-10-21"),
+                ("배포 체크리스트 정리", "2026-10-19", "2026-10-19"),
+                ("검색 필터 상태 유지", "2026-10-16", "2026-10-20"),
+                ("프로모션 노출 검증", "2026-10-19", "2026-10-22"),
+                ("다음 배포 준비", "2026-10-26", "2026-10-29")
+            ] { _ = try calendarModel.save(id: nil, title: title, ticket: "", start: start, end: end) }
+            session.selected = calendarModel.tasks.first?.id
+            let preview = ZStack {
+                MainWindow().environmentObject(calendarModel).environmentObject(session)
+                Color.black.opacity(0.14)
+                WorkCalendarPanel(tasks: calendarModel.tasks, today: "2026-10-19", close: {}, select: { _ in })
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .shadow(color: .black.opacity(0.12), radius: 24, y: 10)
+            }.frame(width: 960, height: 700).preferredColorScheme(.light)
+            let view = NSHostingView(rootView: preview)
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 700), styleMask: [.borderless], backing: .buffered, defer: false)
+            window.contentView = view
+            view.layoutSubtreeIfNeeded()
+            RunLoop.main.run(until: Date().addingTimeInterval(0.2))
+            view.displayIfNeeded()
+            guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { fatalError("Calendar preview bitmap unavailable") }
+            view.cacheDisplay(in: view.bounds, to: bitmap)
+            guard let png = bitmap.representation(using: .png, properties: [:]) else { fatalError("Calendar preview PNG unavailable") }
+            try png.write(to: URL(fileURLWithPath: CommandLine.arguments[argument + 1]))
+            print("Calendar design preview rendered")
+        }
         if CommandLine.arguments.contains("--show") || CommandLine.arguments.contains("--show-settings") || CommandLine.arguments.contains("--show-onboarding") {
             _ = try model.save(id: nil, title: "예정 작업 확인", ticket: "", start: "2099-10-01", end: "2099-10-02")
             _ = try model.save(id: nil, title: "완료 작업 확인", ticket: "", start: "2020-10-01", end: "2020-10-02")
