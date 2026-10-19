@@ -24,36 +24,37 @@ struct WorkCalendarPanel: View {
         _month = State(initialValue: Dates.date(today)!)
     }
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text(calendar.title).font(.system(size: 18, weight: .semibold))
                 Spacer()
-                Button("오늘") { month = Dates.date(today)! }.buttonStyle(.bordered).controlSize(.small).handCursor()
-                IconButton(symbol: "chevron.left", label: "이전 달") { month = calendar.moving(-1) }
-                IconButton(symbol: "chevron.right", label: "다음 달") { month = calendar.moving(1) }
-                IconButton(symbol: "xmark", label: "캘린더 닫기", action: close).keyboardShortcut(.cancelAction)
-            }
-            VStack(spacing: 6) {
-                HStack(spacing: 0) {
-                    ForEach(["일", "월", "화", "수", "목", "금", "토"], id: \.self) { day in
-                        Text(day).font(.system(size: 11)).foregroundStyle(Palette.secondary).frame(maxWidth: .infinity)
-                    }
-                }.padding(.bottom, 4)
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 4) {
-                    ForEach(Array(calendar.days.enumerated()), id: \.offset) { _, day in
-                        if let day {
-                            CalendarDay(day: day, today: today, tasks: WorkCalendar.tasks(on: day, from: tasks), select: select)
-                        } else { Color.clear.frame(height: 54).accessibilityHidden(true) }
+                HStack(spacing: 7) {
+                    Button("오늘") { month = Dates.date(today)! }
+                        .font(.system(size: 11)).foregroundStyle(Palette.secondary)
+                        .frame(width: 42, height: 25).background(Palette.quiet, in: RoundedRectangle(cornerRadius: 5))
+                        .buttonStyle(.plain).handCursor()
+                    HStack(spacing: 0) {
+                        IconButton(symbol: "chevron.left", label: "이전 달", size: 27, glyph: 13) { month = calendar.moving(-1) }
+                        IconButton(symbol: "chevron.right", label: "다음 달", size: 27, glyph: 13) { month = calendar.moving(1) }
+                        IconButton(symbol: "xmark", label: "캘린더 닫기", size: 27, glyph: 13, action: close).keyboardShortcut(.cancelAction)
                     }
                 }
+            }.frame(height: 28).padding(.bottom, 18)
+            HStack(spacing: 0) {
+                ForEach(["일", "월", "화", "수", "목", "금", "토"], id: \.self) { day in
+                    Text(day).font(.system(size: 11)).foregroundStyle(Palette.secondary)
+                        .padding(.leading, 6).frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }.frame(height: 14).padding(.bottom, 12)
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 0) {
+                ForEach(Array(calendar.days.enumerated()), id: \.offset) { _, day in
+                    if let day {
+                        CalendarDay(day: day, today: today, tasks: WorkCalendar.tasks(on: day, today: today, from: tasks), select: select)
+                    } else { Color.clear.frame(height: 58).accessibilityHidden(true) }
+                }
             }
-            HStack(spacing: 6) {
-                Circle().fill(Palette.status(.inProgress)).frame(width: 5, height: 5)
-                Text("날짜별 진행 작업").font(.system(size: 11))
-                Spacer()
-                Text("올려서 이름 확인 · 눌러서 목록 보기").font(.system(size: 11))
-            }.foregroundStyle(Palette.secondary)
-        }.padding(24).frame(width: 600).background(Palette.surface).foregroundStyle(Palette.ink)
+        }.padding(.horizontal, 24).padding(.top, 24).padding(.bottom, 36)
+            .frame(width: 600).background(Palette.surface).foregroundStyle(Palette.ink)
     }
 }
 
@@ -64,25 +65,32 @@ private struct CalendarDay: View {
     let select: (WorkItem) -> Void
     @State private var hovering = false
     @State private var showingTasks = false
+    private func status(_ task: WorkItem) -> TaskStatus { Dates.status(start: task.start, end: task.end, today: today) }
     private var tooltip: String {
-        ([Dates.display(day)] + (tasks.isEmpty ? ["진행 작업 없음"] : tasks.map { "• \($0.title)" })).joined(separator: "\n")
+        ([Dates.display(day)] + (tasks.isEmpty ? ["작업 없음"] : tasks.map { "\(status($0).label): \($0.title)" })).joined(separator: "\n")
     }
     var body: some View {
         Button { if !tasks.isEmpty { showingTasks = true } } label: {
-            VStack(spacing: 4) {
+            VStack(alignment: .leading, spacing: 0) {
                 Text(String(Int(day.suffix(2))!)).font(.system(size: 12, weight: day == today ? .semibold : .regular))
                     .foregroundStyle(day == today ? .white : Palette.ink)
-                    .frame(width: 24, height: 24).background(day == today ? Palette.accent : .clear, in: Circle())
-                HStack(spacing: 4) {
-                    Circle().fill(Palette.status(.inProgress)).frame(width: 5, height: 5)
-                    Text("\(tasks.count)").font(.system(size: 10, weight: .medium)).monospacedDigit()
-                }.foregroundStyle(Palette.secondary).opacity(tasks.isEmpty ? 0 : 1)
-            }.frame(maxWidth: .infinity).frame(height: 54).contentShape(Rectangle())
+                    .frame(width: 25, height: 24, alignment: day == today ? .center : .leading)
+                    .background(day == today ? Palette.accent : .clear, in: RoundedRectangle(cornerRadius: 5))
+                    .padding(.leading, day == today ? 3 : 6).padding(.top, 5).padding(.bottom, 5)
+                VStack(spacing: 4) {
+                    RoundedRectangle(cornerRadius: 2).fill(Palette.status(.inProgress).opacity(0.14))
+                        .frame(height: 7).opacity(tasks.contains { status($0) == .inProgress } ? 1 : 0)
+                    RoundedRectangle(cornerRadius: 2).fill(Palette.status(.toDo).opacity(0.17))
+                        .frame(height: 7).opacity(tasks.contains { status($0) == .toDo } ? 1 : 0)
+                }.padding(.leading, 6).padding(.trailing, 10)
+                Spacer(minLength: 0)
+            }.frame(maxWidth: .infinity, alignment: .leading).frame(height: 58).contentShape(Rectangle())
         }.buttonStyle(.plain)
-        .background(hovering ? Palette.selected : Palette.quiet.opacity(0.55), in: RoundedRectangle(cornerRadius: 6))
+        .background(hovering ? Palette.quiet : .clear, in: RoundedRectangle(cornerRadius: 4))
+        .overlay(alignment: .topLeading) { Rectangle().fill(Palette.line).frame(height: 0.75).padding(.trailing, 4).allowsHitTesting(false) }
         .onHover { hovering = $0 }.handCursor().help(tooltip)
-        .accessibilityLabel("\(Dates.display(day)), 진행 작업 \(tasks.count)개")
-        .accessibilityHint(tasks.isEmpty ? "진행 작업 없음" : "작업 목록 열기")
+        .accessibilityLabel(tooltip)
+        .accessibilityHint(tasks.isEmpty ? "작업 없음" : "작업 목록 열기")
         .popover(isPresented: $showingTasks) {
             VStack(alignment: .leading, spacing: 12) {
                 Text(Dates.display(day)).font(.system(size: 12, weight: .semibold)).foregroundStyle(Palette.secondary)
@@ -92,7 +100,10 @@ private struct CalendarDay: View {
                             Button { showingTasks = false; select(task) } label: {
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(task.title).font(.system(size: 13, weight: .medium)).fixedSize(horizontal: false, vertical: true)
-                                    if !task.ticket.isEmpty { Text(task.ticket).font(.system(size: 11)).foregroundStyle(Palette.secondary) }
+                                    HStack(spacing: 6) {
+                                        Text(status(task).label)
+                                        if !task.ticket.isEmpty { Text(task.ticket) }
+                                    }.font(.system(size: 11)).foregroundStyle(Palette.secondary)
                                 }.frame(maxWidth: .infinity, alignment: .leading).padding(8).contentShape(Rectangle())
                             }.buttonStyle(.plain).handCursor()
                         }

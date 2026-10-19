@@ -51,6 +51,12 @@ struct FailingUITokenVault: TokenVault {
         // Header + tabs alone fit in ~90pt. A task must contribute a visible list region.
         guard size.height >= 150 else { print("FAIL: task list collapsed below tabs"); exit(1) }
         print("Popover layout check passed")
+        for (month, expectedHeight) in [("2026-02-01", 364.0), ("2026-10-19", 422.0), ("2026-08-01", 480.0)] {
+            let panel = NSHostingController(rootView: WorkCalendarPanel(tasks: model.tasks, today: month, close: {}, select: { _ in }))
+            let fitting = panel.sizeThatFits(in: CGSize(width: 600, height: 0))
+            assert(abs(fitting.width - 600) < 1 && abs(fitting.height - expectedHeight) < 1, "Calendar has unexpected whitespace: \(fitting)")
+        }
+        print("Calendar layout: 600pt width, 4/5/6 weeks and 36pt bottom padding passed")
         if let argument = CommandLine.arguments.firstIndex(of: "--render-calendar"), CommandLine.arguments.count > argument + 1 {
             // Render only synthetic tasks in an isolated database; never the user's window/data.
             let calendarModel = try AppModel(database: Database(url: directory.appendingPathComponent("calendar.sqlite")), jira: session.integration.jira, now: { Dates.date("2026-10-19")! })
@@ -60,7 +66,7 @@ struct FailingUITokenVault: TokenVault {
                 ("배포 체크리스트 정리", "2026-10-19", "2026-10-19"),
                 ("검색 필터 상태 유지", "2026-10-16", "2026-10-20"),
                 ("프로모션 노출 검증", "2026-10-19", "2026-10-22"),
-                ("다음 배포 준비", "2026-10-26", "2026-10-29")
+                ("다음 배포 준비", "2026-10-21", "2026-10-29")
             ] { _ = try calendarModel.save(id: nil, title: title, ticket: "", start: start, end: end) }
             session.selected = calendarModel.tasks.first?.id
             let preview = ZStack {

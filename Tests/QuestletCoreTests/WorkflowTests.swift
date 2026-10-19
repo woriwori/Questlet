@@ -29,7 +29,7 @@ actor RecordingJira: JiraTicketModule {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("questlet-check-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
         let leapMonth = WorkCalendar(containing: Dates.date("2028-02-10")!)
-        assert(leapMonth.days.count == 42 && leapMonth.days.compactMap { $0 }.count == 29)
+        assert(leapMonth.days.count == 35 && leapMonth.days.compactMap { $0 }.count == 29)
         assert(leapMonth.days[2] == "2028-02-01" && leapMonth.days[30] == "2028-02-29")
         let december = WorkCalendar(containing: Dates.date("2026-12-31")!)
         assert(Dates.day(december.moving(1)) == "2027-01-01")
@@ -37,12 +37,23 @@ actor RecordingJira: JiraTicketModule {
         let spanning = WorkItem(title: "월 경계 작업", start: "2026-09-30", end: "2026-10-02", today: "2026-10-19")
         assert(spanning.status == .closed)
         for day in ["2026-09-30", "2026-10-01", "2026-10-02"] {
-            assert(WorkCalendar.tasks(on: day, from: [spanning]).map(\.id) == [spanning.id])
+            assert(WorkCalendar.tasks(on: day, today: "2026-10-01", from: [spanning]).map(\.id) == [spanning.id])
         }
-        for day in ["2026-09-29", "2026-10-03"] { assert(WorkCalendar.tasks(on: day, from: [spanning]).isEmpty) }
+        for day in ["2026-09-29", "2026-10-03"] { assert(WorkCalendar.tasks(on: day, today: "2026-10-01", from: [spanning]).isEmpty) }
         assert(WorkCalendar(containing: Dates.date("2026-02-01")!).days.first! == "2026-02-01")
-        assert(WorkCalendar.tasks(on: "2026-10-01", from: []).isEmpty)
-        print("Calendar leap year, six weeks, Sunday alignment, month navigation and inclusive periods passed")
+        assert(WorkCalendar.tasks(on: "2026-10-01", today: "2026-10-19", from: []).isEmpty)
+        assert(WorkCalendar.tasks(on: "2026-10-01", today: "2026-10-19", from: [spanning]).isEmpty)
+        assert(WorkCalendar(containing: Dates.date("2026-02-01")!).days.count == 28)
+        assert(WorkCalendar(containing: Dates.date("2026-08-01")!).days.count == 42)
+        let active = WorkItem(title: "진행 작업", start: "2026-10-15", end: "2026-10-23", today: "2026-10-19")
+        var planned = WorkItem(title: "예정 작업", start: "2026-10-21", end: "2026-10-29", today: "2026-10-19")
+        planned.status = .closed // Stored status can be stale; classify from dates and today.
+        let overlapping = WorkCalendar.tasks(on: "2026-10-21", today: "2026-10-19", from: [active, planned, spanning])
+        assert(Set(overlapping.map(\.id)) == Set([active.id, planned.id]))
+        assert(WorkCalendar.tasks(on: "2026-10-24", today: "2026-10-19", from: [active, planned]).map(\.id) == [planned.id])
+        assert(WorkCalendar.tasks(on: "2026-10-29", today: "2026-10-29", from: [planned]).count == 1)
+        assert(WorkCalendar.tasks(on: "2026-10-29", today: "2026-10-30", from: [planned]).isEmpty)
+        print("Calendar 4/5/6 weeks, leap year, month navigation, active/planned overlap and Closed exclusion passed")
         let sortDB = try Database(url: root.appendingPathComponent("sort.sqlite"))
         var sortData = Snapshot()
         sortData.tasks = [
