@@ -123,7 +123,7 @@ struct TaskRow: View {
                 }
                 Text("\(Dates.display(task.start)) — \(Dates.display(task.end))").monospacedDigit().foregroundStyle(Palette.secondary).allowsHitTesting(false)
             }.font(.system(size: compact ? 11 : 12)).padding(.horizontal, compact ? 9 : 10).padding(.vertical, compact ? 8 : 12)
-        }.background(!compact && session.selected == task.id ? Color(hex: 0xe0e2e5) : hovering && !compact ? Color(hex: 0xe9ebed) : Color.clear, in: RoundedRectangle(cornerRadius: 7))
+        }.background(!compact && session.selected == task.id ? Palette.line : hovering && !compact ? Color(hex: 0xe9ebed) : Color.clear, in: RoundedRectangle(cornerRadius: 7))
         .onHover { hovering = $0 }
     }
 }
