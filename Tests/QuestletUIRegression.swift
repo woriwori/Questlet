@@ -22,10 +22,11 @@ struct FailingUITokenVault: TokenVault {
             renderer.scale = scale
             let bitmap = NSBitmapImageRep(cgImage: renderer.cgImage!)
             let corner = bitmap.colorAt(x: 0, y: 0)!.alphaComponent
-            let edge = bitmap.colorAt(x: 5, y: 0)!.alphaComponent
-            assert(corner < 0.5 && edge > 0.9, "Outer edge is not a 4px radius at scale \(scale): \(corner), \(edge)")
+            let shoulder = bitmap.colorAt(x: 2, y: 0)!.alphaComponent
+            let edge = bitmap.colorAt(x: 7, y: 0)!.alphaComponent
+            assert(corner < 0.5 && shoulder < 0.5 && edge > 0.9, "Outer edge is not a 6px radius at scale \(scale): \(corner), \(shoulder), \(edge)")
         }
-        print("Actual outer-edge pixel checks passed at 1x and 2x (4px)")
+        print("Actual outer-edge pixel checks passed at 1x and 2x (6px)")
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let draft = TaskDraft(today: "2026-10-03")

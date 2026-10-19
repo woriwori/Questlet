@@ -21,7 +21,7 @@ private struct FloatingSurface: ViewModifier {
     @Environment(\.displayScale) private var scale
     func body(content: Content) -> some View {
         content.background(Palette.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 4 / max(1, scale), style: .circular))
+            .clipShape(RoundedRectangle(cornerRadius: 6 / max(1, scale), style: .circular))
             .shadow(color: .black.opacity(0.12), radius: 16, y: 5)
     }
 }
