@@ -61,6 +61,15 @@ struct FailingUITokenVault: TokenVault {
         // Header + tabs alone fit in ~90pt. A task must contribute a visible list region.
         guard size.height >= 150 else { print("FAIL: task list collapsed below tabs"); exit(1) }
         print("Popover layout check passed")
+        func scrollViews(in node: NSView) -> [NSScrollView] {
+            (node as? NSScrollView).map { [$0] } ?? node.subviews.flatMap { scrollViews(in: $0) }
+        }
+        let form = NSHostingController(rootView: CreationForm().environmentObject(model).environmentObject(session))
+        let formSize = form.sizeThatFits(in: CGSize(width: 440, height: 572))
+        form.view.frame.size = formSize
+        form.view.layoutSubtreeIfNeeded()
+        assert(formSize.height > 572 && scrollViews(in: form.view).isEmpty, "Creation form compressed or added scrolling")
+        print("Creation form uses its full content height without a scroll container: \(formSize.height)pt")
         for (month, expectedHeight) in [("2026-02-01", 364.0), ("2026-10-19", 422.0), ("2026-08-01", 480.0)] {
             let panel = NSHostingController(rootView: WorkCalendarPanel(tasks: model.tasks, today: month, close: {}, select: { _ in }))
             let fitting = panel.sizeThatFits(in: CGSize(width: 600, height: 0))
@@ -74,15 +83,16 @@ struct FailingUITokenVault: TokenVault {
                 ("접근성 검수", "CMGSL-13510", "2026-10-21"),
                 ("다음 배포 준비", "CMGSL-13512", "2026-10-22")
             ].map { WorkItem(title: $0.0, ticket: $0.1, start: $0.2, end: "2026-10-29", today: "2026-10-19") }
+            for count in 1...4 {
+                let expected: CGFloat = count < 4 ? CGFloat(count * 44 - 4 + 16) : 168
+                assert(CalendarTaskList.height(for: Array(samples.prefix(count))) == expected)
+            }
             let view = NSHostingView(rootView: CalendarTaskList(tasks: samples, today: "2026-10-19", select: { _ in }).floatingSurface().padding(10).background(Palette.quiet).preferredColorScheme(.light))
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 208), styleMask: [.borderless], backing: .buffered, defer: false)
             window.contentView = view
             view.layoutSubtreeIfNeeded()
             RunLoop.main.run(until: Date().addingTimeInterval(0.2))
             view.displayIfNeeded()
-            func scrollViews(in node: NSView) -> [NSScrollView] {
-                (node as? NSScrollView).map { [$0] } ?? node.subviews.flatMap { scrollViews(in: $0) }
-            }
             let actualScrollViews = scrollViews(in: view)
             if let document = actualScrollViews.first?.documentView, let documentBitmap = document.bitmapImageRepForCachingDisplay(in: document.bounds) {
                 // Flush the nested hosting view before capturing the outer snapshot.
@@ -96,7 +106,10 @@ struct FailingUITokenVault: TokenVault {
                 assert(hasText, "Scroll document did not render its task names")
             }
             assert(!actualScrollViews.isEmpty && actualScrollViews.allSatisfy { $0.scrollerStyle == .overlay && $0.autohidesScrollers && $0.verticalScroller?.scrollerStyle == .overlay })
-            print("Rendered tooltip uses native overlay/auto-hide scrollbars")
+            let scroll = actualScrollViews[0]
+            assert(abs(scroll.contentView.bounds.height - 152) < 1, "Tooltip must show 3 rows plus half of row 4")
+            assert(abs((scroll.documentView?.frame.height ?? 0) - 172) < 1, "Tooltip rows have unexpected heights")
+            print("Tooltip: 152pt viewport, 172pt document, 3.5 rows, overlay/auto-hide scrollbars passed")
             let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds)!
             view.cacheDisplay(in: view.bounds, to: bitmap)
             try bitmap.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: CommandLine.arguments[argument + 1]))
@@ -135,6 +148,15 @@ struct FailingUITokenVault: TokenVault {
             guard let png = bitmap.representation(using: .png, properties: [:]) else { fatalError("Calendar preview PNG unavailable") }
             try png.write(to: URL(fileURLWithPath: CommandLine.arguments[argument + 1]))
             print("Calendar design preview rendered")
+            if CommandLine.arguments.contains("--show-main") {
+                NSApp.setActivationPolicy(.regular)
+                let interactive = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 780, height: 620), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+                interactive.title = "Questlet UI Check"
+                interactive.contentView = NSHostingView(rootView: MainWindow().environmentObject(calendarModel).environmentObject(session).preferredColorScheme(.light))
+                interactive.center(); interactive.makeKeyAndOrderFront(nil)
+                NSApp.activate(ignoringOtherApps: true)
+                NSApp.run()
+            }
         }
         if CommandLine.arguments.contains("--show") || CommandLine.arguments.contains("--show-settings") || CommandLine.arguments.contains("--show-onboarding") {
             _ = try model.save(id: nil, title: "예정 작업 확인", ticket: "", start: "2099-10-01", end: "2099-10-02")

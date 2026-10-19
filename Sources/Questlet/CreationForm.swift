@@ -3,6 +3,10 @@ import AppKit
 import QuestletCore
 
 enum CreationTab: String, CaseIterable { case task = "새 작업", srd = "SRD 생성", rp = "RP 생성" }
+struct CreationFormHeight: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+}
 struct CreationForm: View {
     @EnvironmentObject var model: AppModel
     @EnvironmentObject var session: Session
@@ -22,10 +26,7 @@ struct CreationForm: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack { Text("새로 만들기").font(.system(size: 17, weight: .medium)); Spacer(); IconButton(symbol: "xmark", label: "닫기") { session.route = nil }.disabled(session.generating) }
             HStack(spacing: 3) { ForEach(CreationTab.allCases, id: \.self) { value in Button { tab = value; error = nil; receipt = nil; unknown = false; requestID = UUID() } label: { Text(value.rawValue).font(.system(size: 12)).frame(maxWidth: .infinity).padding(.vertical, 7).contentShape(Rectangle()) }.buttonStyle(.plain).background(tab == value ? Palette.selected : .clear, in: RoundedRectangle(cornerRadius: 5)).accessibilityAddTraits(tab == value ? .isSelected : []).disabled(session.generating).handCursor() } }
-            ViewThatFits(in: .vertical) {
-                formContent.fixedSize(horizontal: false, vertical: true)
-                TransientScrollView { formContent }
-            }
+            formContent
             Divider()
             HStack {
                 Spacer()
@@ -35,6 +36,8 @@ struct CreationForm: View {
                 }
             }
         }.padding(22).frame(width: 440).background(Palette.surface).interactiveDismissDisabled(session.generating)
+        .fixedSize(horizontal: false, vertical: true)
+        .background(GeometryReader { geometry in Color.clear.preference(key: CreationFormHeight.self, value: geometry.size.height) })
         .onDisappear { session.generating = false }
     }
     private var formContent: some View {
