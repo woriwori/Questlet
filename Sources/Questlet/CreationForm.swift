@@ -22,6 +22,23 @@ struct CreationForm: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack { Text("새로 만들기").font(.system(size: 17, weight: .medium)); Spacer(); IconButton(symbol: "xmark", label: "닫기") { session.route = nil }.disabled(session.generating) }
             HStack(spacing: 3) { ForEach(CreationTab.allCases, id: \.self) { value in Button { tab = value; error = nil; receipt = nil; unknown = false; requestID = UUID() } label: { Text(value.rawValue).font(.system(size: 12)).frame(maxWidth: .infinity).padding(.vertical, 7).contentShape(Rectangle()) }.buttonStyle(.plain).background(tab == value ? Palette.selected : .clear, in: RoundedRectangle(cornerRadius: 5)).accessibilityAddTraits(tab == value ? .isSelected : []).disabled(session.generating).handCursor() } }
+            ViewThatFits(in: .vertical) {
+                formContent.fixedSize(horizontal: false, vertical: true)
+                ScrollView { formContent }.defaultScrollAnchor(.top)
+            }
+            Divider()
+            HStack {
+                Spacer()
+                Button(receipt == nil ? "취소" : "닫기") { session.route = nil }.disabled(session.generating).handCursor()
+                if receipt == nil {
+                    Button(tab == .task ? "저장" : "생성") { if tab == .task { saveTask() } else { Task { await generate() } } }.buttonStyle(.borderedProminent).tint(Palette.ink).disabled(!complete || session.generating || unknown).handCursor()
+                }
+            }
+        }.padding(22).frame(width: 440).background(Palette.surface).interactiveDismissDisabled(session.generating)
+        .onDisappear { session.generating = false }
+    }
+    private var formContent: some View {
+        VStack(alignment: .leading, spacing: 16) {
             Group {
                 switch tab {
                 case .task: TaskFields(draft: $draft)
@@ -43,17 +60,7 @@ struct CreationForm: View {
                     HStack { Button("링크 복사") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(receipt.wikiURL.absoluteString, forType: .string) }.handCursor(); if !receipt.simulated { Link("위키 열기", destination: receipt.wikiURL).handCursor() } }
                 }.padding(12).frame(maxWidth: .infinity, alignment: .leading).background(Palette.quiet, in: RoundedRectangle(cornerRadius: 6))
             }
-            Divider()
-            HStack {
-                Spacer()
-                Button(receipt == nil ? "취소" : "닫기") { session.route = nil }.disabled(session.generating).handCursor()
-                if receipt == nil {
-                    Button(tab == .task ? "저장" : "생성") { if tab == .task { saveTask() } else { Task { await generate() } } }.buttonStyle(.borderedProminent).tint(Palette.ink).disabled(!complete || session.generating || unknown).handCursor()
-                }
-            }
-        }.padding(22).frame(width: 440).background(Palette.surface).interactiveDismissDisabled(session.generating)
-        .presentationCornerRadius(Palette.sheetCornerRadius)
-        .onDisappear { session.generating = false }
+        }
     }
     private var complete: Bool {
         switch tab {

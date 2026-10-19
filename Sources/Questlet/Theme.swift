@@ -3,8 +3,6 @@ import AppKit
 import QuestletCore
 
 enum Palette {
-    static let sheetCornerRadius: CGFloat = 6
-    static let popoverCornerRadius: CGFloat = 4
     static let surface = Color(hex: 0xfcfcfc), quiet = Color(hex: 0xf4f5f6)
     static let line = Color(hex: 0xe5e7e9), ink = Color(hex: 0x282d33), secondary = Color(hex: 0x6e747c)
     static let selected = Color(hex: 0xedf1f4), accent = Color(hex: 0x56729a)
@@ -15,6 +13,17 @@ extension Color {
 }
 extension View {
     func handCursor() -> some View { onHover { hovering in if hovering { NSCursor.pointingHand.push() } else { NSCursor.pop() } } }
+    func floatingSurface() -> some View { modifier(FloatingSurface()) }
+}
+
+// Draw the actual outer edge instead of asking macOS to change its sheet/popover chrome.
+private struct FloatingSurface: ViewModifier {
+    @Environment(\.displayScale) private var scale
+    func body(content: Content) -> some View {
+        content.background(Palette.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 4 / max(1, scale), style: .circular))
+            .shadow(color: .black.opacity(0.12), radius: 16, y: 5)
+    }
 }
 struct Brand: View {
     var compact = false

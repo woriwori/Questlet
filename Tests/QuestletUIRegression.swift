@@ -17,6 +17,15 @@ struct FailingUITokenVault: TokenVault {
 @main struct UIRegression {
     @MainActor static func main() throws {
         _ = NSApplication.shared
+        for scale in [1.0, 2.0] {
+            let renderer = ImageRenderer(content: Color.white.frame(width: 40, height: 40).floatingSurface().environment(\.displayScale, scale))
+            renderer.scale = scale
+            let bitmap = NSBitmapImageRep(cgImage: renderer.cgImage!)
+            let corner = bitmap.colorAt(x: 0, y: 0)!.alphaComponent
+            let edge = bitmap.colorAt(x: 5, y: 0)!.alphaComponent
+            assert(corner < 0.5 && edge > 0.9, "Outer edge is not a 4px radius at scale \(scale): \(corner), \(edge)")
+        }
+        print("Actual outer-edge pixel checks passed at 1x and 2x (4px)")
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
         let draft = TaskDraft(today: "2026-10-03")
@@ -64,7 +73,7 @@ struct FailingUITokenVault: TokenVault {
                 ("접근성 검수", "CMGSL-13510", "2026-10-21"),
                 ("다음 배포 준비", "CMGSL-13512", "2026-10-22")
             ].map { WorkItem(title: $0.0, ticket: $0.1, start: $0.2, end: "2026-10-29", today: "2026-10-19") }
-            let view = NSHostingView(rootView: CalendarTaskList(tasks: samples, today: "2026-10-19", select: { _ in }).clipShape(RoundedRectangle(cornerRadius: Palette.popoverCornerRadius)).padding(10).background(Palette.quiet).preferredColorScheme(.light))
+            let view = NSHostingView(rootView: CalendarTaskList(tasks: samples, today: "2026-10-19", select: { _ in }).floatingSurface().padding(10).background(Palette.quiet).preferredColorScheme(.light))
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 300, height: 208), styleMask: [.borderless], backing: .buffered, defer: false)
             window.contentView = view
             view.layoutSubtreeIfNeeded()
@@ -87,12 +96,15 @@ struct FailingUITokenVault: TokenVault {
                 ("다음 배포 준비", "2026-10-21", "2026-10-29")
             ] { _ = try calendarModel.save(id: nil, title: title, ticket: "", start: start, end: end) }
             session.selected = calendarModel.tasks.first?.id
+            let renderingCreation = CommandLine.arguments.contains("--creation")
+            if renderingCreation { session.route = .create }
             let preview = ZStack {
                 MainWindow().environmentObject(calendarModel).environmentObject(session)
-                Color.black.opacity(0.14)
-                WorkCalendarPanel(tasks: calendarModel.tasks, today: "2026-10-19", close: {}, select: { _ in })
-                    .clipShape(RoundedRectangle(cornerRadius: Palette.sheetCornerRadius))
-                    .shadow(color: .black.opacity(0.12), radius: 24, y: 10)
+                if !renderingCreation {
+                    Color.black.opacity(0.14)
+                    WorkCalendarPanel(tasks: calendarModel.tasks, today: "2026-10-19", close: {}, select: { _ in })
+                        .floatingSurface()
+                }
             }.frame(width: 960, height: 700).preferredColorScheme(.light)
             let view = NSHostingView(rootView: preview)
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 960, height: 700), styleMask: [.borderless], backing: .buffered, defer: false)

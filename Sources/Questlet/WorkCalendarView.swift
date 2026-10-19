@@ -1,16 +1,9 @@
 import SwiftUI
 import QuestletCore
 
-struct WorkCalendarSheet: View {
-    @EnvironmentObject var model: AppModel
-    @EnvironmentObject var session: Session
-    @Environment(\.dismiss) private var dismiss
-    var body: some View {
-        WorkCalendarPanel(tasks: model.tasks, today: model.today, close: { dismiss() }) { task in
-            session.choose(task); dismiss()
-        }
-        .presentationCornerRadius(Palette.sheetCornerRadius)
-    }
+private struct CalendarTaskAnchor: PreferenceKey {
+    static let defaultValue: Anchor<CGRect>? = nil
+    static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) { value = nextValue() ?? value }
 }
 
 struct WorkCalendarPanel: View {
@@ -19,6 +12,8 @@ struct WorkCalendarPanel: View {
     let close: () -> Void
     let select: (WorkItem) -> Void
     @State private var month: Date
+    @State private var selectedDay: String?
+    @State private var tooltipDismissal: Task<Void, Never>?
     private var calendar: WorkCalendar { WorkCalendar(containing: month) }
     init(tasks: [WorkItem], today: String, close: @escaping () -> Void, select: @escaping (WorkItem) -> Void) {
         self.tasks = tasks; self.today = today; self.close = close; self.select = select
@@ -50,12 +45,42 @@ struct WorkCalendarPanel: View {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 0) {
                 ForEach(Array(calendar.days.enumerated()), id: \.offset) { _, day in
                     if let day {
-                        CalendarDay(day: day, today: today, tasks: WorkCalendar.tasks(on: day, today: today, from: tasks), select: select)
+                        let dayTasks = WorkCalendar.tasks(on: day, today: today, from: tasks)
+                        CalendarDay(day: day, today: today, tasks: dayTasks, selected: selectedDay == day,
+                                    showTasks: { showTooltip(dayTasks.isEmpty ? nil : day) },
+                                    hover: { inside in if inside { showTooltip(dayTasks.isEmpty ? nil : day) } else { dismissTooltipSoon() } })
                     } else { Color.clear.frame(height: 58).accessibilityHidden(true) }
                 }
             }
         }.padding(.horizontal, 24).padding(.top, 24).padding(.bottom, 36)
             .frame(width: 600).background(Palette.surface).foregroundStyle(Palette.ink)
+            .overlayPreferenceValue(CalendarTaskAnchor.self) { anchor in
+                GeometryReader { geometry in
+                    if let anchor, let day = selectedDay {
+                        let dayTasks = WorkCalendar.tasks(on: day, today: today, from: tasks)
+                        let rect = geometry[anchor]
+                        let height = CalendarTaskList.height(for: dayTasks)
+                        CalendarTaskList(tasks: dayTasks, today: today) { task in selectedDay = nil; select(task) }
+                            .floatingSurface()
+                            .position(x: min(geometry.size.width - 148, max(148, rect.midX)),
+                                      y: rect.maxY + height + 8 <= geometry.size.height ? rect.maxY + 8 + height / 2 : max(height / 2 + 8, rect.minY - 8 - height / 2))
+                            .onExitCommand { selectedDay = nil }
+                            .onHover { inside in if inside { tooltipDismissal?.cancel() } else { dismissTooltipSoon() } }
+                    }
+                }
+            }
+            .onChange(of: month) { _, _ in selectedDay = nil }
+            .onDisappear { tooltipDismissal?.cancel() }
+    }
+    private func showTooltip(_ day: String?) {
+        tooltipDismissal?.cancel(); selectedDay = day
+    }
+    private func dismissTooltipSoon() {
+        tooltipDismissal?.cancel()
+        tooltipDismissal = Task { @MainActor in
+            do { try await Task.sleep(nanoseconds: 150_000_000) } catch { return }
+            selectedDay = nil
+        }
     }
 }
 
@@ -63,15 +88,16 @@ private struct CalendarDay: View {
     let day: String
     let today: String
     let tasks: [WorkItem]
-    let select: (WorkItem) -> Void
+    let selected: Bool
+    let showTasks: () -> Void
+    let hover: (Bool) -> Void
     @State private var hovering = false
-    @State private var showingTasks = false
     private func status(_ task: WorkItem) -> TaskStatus { Dates.status(start: task.start, end: task.end, today: today) }
     private var tooltip: String {
         (tasks.isEmpty ? ["작업 없음"] : tasks.map { "\(status($0).label): \($0.title)" }).joined(separator: "\n")
     }
     var body: some View {
-        Button { if !tasks.isEmpty { showingTasks = true } } label: {
+        Button { if !tasks.isEmpty { showTasks() } } label: {
             VStack(alignment: .leading, spacing: 0) {
                 Text(String(Int(day.suffix(2))!)).font(.system(size: 12, weight: day == today ? .semibold : .regular))
                     .foregroundStyle(day == today ? .white : Palette.ink)
@@ -89,14 +115,10 @@ private struct CalendarDay: View {
         }.buttonStyle(.plain)
         .background(hovering ? Palette.quiet : .clear, in: RoundedRectangle(cornerRadius: 4))
         .overlay(alignment: .topLeading) { Rectangle().fill(Palette.line).frame(height: 0.75).padding(.trailing, 4).allowsHitTesting(false) }
-        .onHover { hovering = $0 }.handCursor().help(tooltip)
+        .onHover { hovering = $0; hover($0) }.handCursor()
         .accessibilityLabel("\(Dates.display(day)), \(tooltip)")
         .accessibilityHint(tasks.isEmpty ? "작업 없음" : "작업 목록 열기")
-        .popover(isPresented: $showingTasks) {
-            CalendarTaskList(tasks: tasks, today: today) { task in
-                showingTasks = false; select(task)
-            }
-        }
+        .anchorPreference(key: CalendarTaskAnchor.self, value: .bounds) { selected ? $0 : nil }
     }
 }
 
@@ -104,6 +126,9 @@ struct CalendarTaskList: View {
     let tasks: [WorkItem]
     let today: String
     let select: (WorkItem) -> Void
+    static func height(for tasks: [WorkItem]) -> CGFloat {
+        min(240, max(0, CGFloat(tasks.reduce(0) { $0 + ($1.ticket.isEmpty ? 28 : 44) }) - 4)) + 16
+    }
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 4) {
@@ -123,8 +148,7 @@ struct CalendarTaskList: View {
                     .accessibilityLabel("\(status.label), \(task.title)\(task.ticket.isEmpty ? "" : ", \(task.ticket)")")
                 }
             }
-        }.frame(height: min(240, max(0, CGFloat(tasks.reduce(0) { $0 + ($1.ticket.isEmpty ? 28 : 44) }) - 4)))
+        }.frame(height: Self.height(for: tasks) - 16)
             .padding(8).frame(width: 280).background(Palette.surface).foregroundStyle(Palette.ink)
-            .presentationCornerRadius(Palette.popoverCornerRadius)
     }
 }

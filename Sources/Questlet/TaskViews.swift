@@ -64,19 +64,40 @@ struct MainWindow: View {
             }
         }
         .background(Palette.surface)
-        .sheet(isPresented: $showingCalendar) { WorkCalendarSheet().environmentObject(model).environmentObject(session) }
-        .sheet(item: $session.route) { route in
-            switch route {
-            case .create: CreationForm().environmentObject(model).environmentObject(session)
-            case .edit(let id): if let task = model.work(id) { EditTaskForm(task: task).environmentObject(model).environmentObject(session) }
+        .disabled(showingCalendar || session.route != nil)
+        .accessibilityHidden(showingCalendar || session.route != nil)
+        .overlay {
+            if showingCalendar || session.route != nil {
+                GeometryReader { geometry in
+                    ZStack {
+                        Color.black.opacity(0.14).contentShape(Rectangle()).onTapGesture {}
+                        Group {
+                            if let route = session.route {
+                                form(for: route).frame(width: 440).id(route.id)
+                            } else {
+                                WorkCalendarPanel(tasks: model.tasks, today: model.today, close: { showingCalendar = false }) { task in
+                                    session.choose(task); showingCalendar = false
+                                }
+                            }
+                        }.floatingSurface().padding(.vertical, 24).environmentObject(model).environmentObject(session)
+                    }.frame(width: geometry.size.width, height: geometry.size.height)
+                }
             }
         }
+        .onExitCommand { if !session.generating { session.route = nil; showingCalendar = false } }
+        .onChange(of: session.route?.id) { _, value in if value != nil { showingCalendar = false } }
         .onChange(of: session.filter) { _, value in if model.work(session.selected)?.status != value { session.selected = visibleTasks.first?.id } }
         .onChange(of: query) { _, _ in if !visibleTasks.contains(where: { $0.id == session.selected }) { session.selected = visibleTasks.first?.id } }
         .onReceive(timer) { _ in session.tick() }
         .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didWakeNotification)) { _ in session.resume() }
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in session.tick() }
         .alert("처리하지 못했습니다", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("확인") { model.error = nil } } message: { Text(model.error ?? "") }
+    }
+    @ViewBuilder private func form(for route: FormRoute) -> some View {
+        switch route {
+        case .create: CreationForm()
+        case .edit(let id): if let task = model.work(id) { ScrollView { EditTaskForm(task: task) }.defaultScrollAnchor(.top) }
+        }
     }
 }
 
@@ -186,7 +207,6 @@ struct MenuPopover: View {
             StatusTabs(value: $filter)
             ScrollView { LazyVStack(spacing: 2) { ForEach(model.list(status: filter)) { task in TaskRow(task: task, compact: true) { session.choose(task); show() } }; if model.list(status: filter).isEmpty { Text("이 상태에 해당하는 작업이 없습니다.").font(.system(size: 12)).foregroundStyle(Palette.secondary).padding(.vertical, 20) } } }.frame(height: min(330, max(64, CGFloat(model.list(status: filter).count) * 84)))
         }.padding(9).frame(width: 340).background(Palette.surface)
-        .presentationCornerRadius(Palette.sheetCornerRadius)
         .onAppear { filter = .inProgress; if !session.needsSetup { model.refresh() } }
         .contextMenu { Button("설정…") { openSettings() }; Button("Questlet 종료") { NSApp.terminate(nil) } }
     }
