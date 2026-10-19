@@ -89,7 +89,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 else { VStack(alignment: .leading, spacing: 14) { Text("Questlet을 열 수 없습니다").font(.title2); Text(session.startupError ?? "알 수 없는 오류"); Text("기존 데이터는 덮어쓰지 않았습니다.").foregroundStyle(.secondary) }.padding(30) }
             }
             .preferredColorScheme(.light)
-            .frame(minWidth: 780, minHeight: 620)
+            .frame(minWidth: 780, minHeight: 672)
             .sheet(isPresented: $session.needsSetup, onDismiss: { session.setupDidDismiss() }) { TokenConfigurationForm(firstRun: true).environmentObject(session).interactiveDismissDisabled() }
         }
         .defaultSize(width: 960, height: 700)

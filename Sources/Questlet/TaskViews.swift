@@ -10,7 +10,6 @@ struct MainWindow: View {
     @State private var sort: TaskSortField = .title
     @State private var ascending = true
     @State private var showingCalendar = false
-    @State private var creationHeight: CGFloat = 0
     private var visibleTasks: [WorkItem] { model.list(status: session.filter, query: query, sort: sort, ascending: ascending) }
     private let timer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
     var body: some View {
@@ -85,8 +84,6 @@ struct MainWindow: View {
                 }
             }
         }
-        .onPreferenceChange(CreationFormHeight.self) { creationHeight = $0 }
-        .frame(minHeight: session.route?.id == "create" ? creationHeight + 48 : nil)
         .onExitCommand { if !session.generating { session.route = nil; showingCalendar = false } }
         .onChange(of: session.route?.id) { _, value in if value != nil { showingCalendar = false } }
         .onChange(of: session.filter) { _, value in if model.work(session.selected)?.status != value { session.selected = visibleTasks.first?.id } }

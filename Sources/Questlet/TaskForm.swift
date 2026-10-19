@@ -14,15 +14,27 @@ struct TaskDraft {
 struct Field: View {
     let label: String; let placeholder: String
     @Binding var value: String
-    var body: some View { VStack(alignment: .leading, spacing: 6) { Text(label).font(.system(size: 12)).foregroundStyle(Palette.secondary); TextField(placeholder, text: $value).textFieldStyle(.plain).padding(8).background(Palette.surface, in: RoundedRectangle(cornerRadius: 6)).overlay(RoundedRectangle(cornerRadius: 6).stroke(Palette.line)).accessibilityLabel(label) } }
+    var required = false
+    var body: some View { VStack(alignment: .leading, spacing: 6) { FieldLabel(label: label, required: required); TextField(placeholder, text: $value).textFieldStyle(.plain).padding(8).background(Palette.surface, in: RoundedRectangle(cornerRadius: 6)).overlay(RoundedRectangle(cornerRadius: 6).stroke(Palette.line)).accessibilityLabel(required ? "\(label), 필수" : label) } }
+}
+struct FieldLabel: View {
+    let label: String
+    var required = false
+    var body: some View {
+        HStack(spacing: 3) {
+            Text(label).foregroundStyle(Palette.secondary)
+            if required { Text("*").foregroundStyle(.red).accessibilityHidden(true) }
+        }.font(.system(size: 12)).accessibilityElement(children: .ignore)
+            .accessibilityLabel(required ? "\(label), 필수" : label)
+    }
 }
 struct TaskFields: View {
     @Binding var draft: TaskDraft
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Field(label: "제목", placeholder: "작업 제목", value: $draft.title)
-            Field(label: "Jira 티켓 · 선택", placeholder: "예: CMGSL-13332", value: $draft.ticket)
-            Text("작업 기간").font(.system(size: 12)).foregroundStyle(Palette.secondary)
+            Field(label: "제목", placeholder: "작업 제목", value: $draft.title, required: true)
+            Field(label: "Jira 티켓", placeholder: "예: CMGSL-13332", value: $draft.ticket)
+            FieldLabel(label: "작업 기간", required: true)
             DateRangePicker(start: $draft.start, end: $draft.end, month: $draft.month)
         }
     }

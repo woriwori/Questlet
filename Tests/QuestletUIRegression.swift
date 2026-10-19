@@ -65,11 +65,22 @@ struct FailingUITokenVault: TokenVault {
             (node as? NSScrollView).map { [$0] } ?? node.subviews.flatMap { scrollViews(in: $0) }
         }
         let form = NSHostingController(rootView: CreationForm().environmentObject(model).environmentObject(session))
-        let formSize = form.sizeThatFits(in: CGSize(width: 440, height: 572))
+        let formSize = form.sizeThatFits(in: CGSize(width: 440, height: 672))
         form.view.frame.size = formSize
         form.view.layoutSubtreeIfNeeded()
-        assert(formSize.height > 572 && scrollViews(in: form.view).isEmpty, "Creation form compressed or added scrolling")
+        assert(formSize.height > 0 && formSize.height <= 672 && scrollViews(in: form.view).isEmpty, "Creation form exceeds the minimum window or added scrolling")
         print("Creation form uses its full content height without a scroll container: \(formSize.height)pt")
+        let main = NSHostingController(rootView: MainWindow().environmentObject(model).environmentObject(session).frame(minWidth: 780, minHeight: 672))
+        main.view.frame.size = CGSize(width: 780, height: 672)
+        main.view.layoutSubtreeIfNeeded()
+        let closedSize = main.sizeThatFits(in: CGSize(width: 780, height: 672))
+        session.route = .create
+        RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+        main.view.layoutSubtreeIfNeeded()
+        let openSize = main.sizeThatFits(in: CGSize(width: 780, height: 672))
+        assert(closedSize == openSize && openSize.height == 672, "Opening creation changed main layout: \(closedSize) -> \(openSize)")
+        session.route = nil
+        print("Minimum 672pt main layout stays unchanged when creation opens")
         for (month, expectedHeight) in [("2026-02-01", 364.0), ("2026-10-19", 422.0), ("2026-08-01", 480.0)] {
             let panel = NSHostingController(rootView: WorkCalendarPanel(tasks: model.tasks, today: month, close: {}, select: { _ in }))
             let fitting = panel.sizeThatFits(in: CGSize(width: 600, height: 0))
@@ -150,7 +161,7 @@ struct FailingUITokenVault: TokenVault {
             print("Calendar design preview rendered")
             if CommandLine.arguments.contains("--show-main") {
                 NSApp.setActivationPolicy(.regular)
-                let interactive = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 780, height: 620), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+                let interactive = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 780, height: 672), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
                 interactive.title = "Questlet UI Check"
                 interactive.contentView = NSHostingView(rootView: MainWindow().environmentObject(calendarModel).environmentObject(session).preferredColorScheme(.light))
                 interactive.center(); interactive.makeKeyAndOrderFront(nil)
