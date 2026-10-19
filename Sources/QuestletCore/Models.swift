@@ -5,6 +5,26 @@ public enum TaskStatus: String, Codable, CaseIterable, Sendable {
     public var label: String { switch self { case .inProgress: "진행 중"; case .toDo: "예정"; case .closed: "완료" } }
 }
 
+public enum TaskSortField: String, CaseIterable, Sendable {
+    case title = "이름", start = "시작일", end = "종료일", ticket = "티켓 ID"
+
+    public func precedes(_ lhs: WorkItem, _ rhs: WorkItem, ascending: Bool) -> Bool {
+        func key(_ task: WorkItem) -> String {
+            switch self {
+            case .title: task.title
+            case .start: task.start
+            case .end: task.end
+            case .ticket: task.ticket.isEmpty ? "0" : task.ticket
+            }
+        }
+        // Numeric comparison keeps CMG-2 before CMG-10, without parsing Jira keys.
+        var order = key(lhs).localizedStandardCompare(key(rhs))
+        if order == .orderedSame { order = lhs.title.localizedStandardCompare(rhs.title) }
+        if order == .orderedSame { order = lhs.id.uuidString.compare(rhs.id.uuidString) }
+        return ascending ? order == .orderedAscending : order == .orderedDescending
+    }
+}
+
 public enum Dates {
     public static var calendar: Calendar {
         var c = Calendar(identifier: .gregorian)

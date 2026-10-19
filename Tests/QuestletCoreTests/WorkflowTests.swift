@@ -28,6 +28,32 @@ actor RecordingJira: JiraTicketModule {
     static func run() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("questlet-check-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
+        let sortDB = try Database(url: root.appendingPathComponent("sort.sqlite"))
+        var sortData = Snapshot()
+        sortData.tasks = [
+            WorkItem(title: "Zulu", ticket: "CMG-10", start: "2026-10-01", end: "2026-10-09", today: "2026-10-04"),
+            WorkItem(title: "alpha", ticket: "CMG-2", start: "2026-10-02", end: "2026-10-08", today: "2026-10-04"),
+            WorkItem(title: "Delta", start: "2026-10-03", end: "2026-10-07", today: "2026-10-04"),
+            WorkItem(title: "Bravo", start: "2026-10-03", end: "2026-10-07", today: "2026-10-04")
+        ]
+        try sortDB.save(sortData)
+        let sortedModel = try AppModel(database: sortDB, jira: RecordingJira())
+        let expected: [TaskSortField: [String]] = [
+            .title: ["alpha", "Bravo", "Delta", "Zulu"],
+            .start: ["Zulu", "alpha", "Bravo", "Delta"],
+            .end: ["Bravo", "Delta", "alpha", "Zulu"],
+            .ticket: ["Bravo", "Delta", "alpha", "Zulu"]
+        ]
+        for field in TaskSortField.allCases {
+            assert(sortedModel.list(status: .inProgress, sort: field).map(\.title) == expected[field]!)
+            assert(sortedModel.list(status: .inProgress, sort: field, ascending: false).map(\.title) == Array(expected[field]!.reversed()))
+        }
+        assert(sortedModel.list(status: .inProgress).map(\.title) == expected[.title]!)
+        assert(sortedModel.list(status: .inProgress, query: "CMG", sort: .ticket).map(\.title) == ["alpha", "Zulu"])
+        assert(sortedModel.list(status: .closed, sort: .ticket).isEmpty)
+        let unchangedSortData = try sortDB.load()
+        assert(unchangedSortData.tasks.map(\.id) == sortData.tasks.map(\.id))
+        print("Sidebar sorting: all fields/directions, missing IDs, numeric IDs, search and default passed")
         let db = try Database(url: root.appendingPathComponent("state.sqlite"))
         var date = Dates.date("2026-10-03")!
         let jira = RecordingJira()

@@ -15,11 +15,11 @@ import Combine
     public var today: String { Dates.day(now()) }
     public var tasks: [WorkItem] { snapshot.tasks }
     public func work(_ id: UUID?) -> WorkItem? { snapshot.tasks.first { $0.id == id } }
-    public func list(status: TaskStatus, query: String = "") -> [WorkItem] {
+    public func list(status: TaskStatus, query: String = "", sort: TaskSortField = .title, ascending: Bool = true) -> [WorkItem] {
         let needle = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         return tasks.filter { task in
             task.status == status && (needle.isEmpty || ([task.title, task.ticket] + task.comments.map { $0.body }).joined(separator: " ").lowercased().contains(needle))
-        }.sorted { ($0.start, $0.end, $0.title) < ($1.start, $1.end, $1.title) }
+        }.sorted { sort.precedes($0, $1, ascending: ascending) }
     }
     public func requests(for task: WorkItem) -> [PendingRequest] { snapshot.requests.filter { $0.taskID == task.id && $0.request.ticketKey == task.ticket } }
     public func busy(_ id: UUID) -> Bool {

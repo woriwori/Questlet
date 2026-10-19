@@ -7,6 +7,9 @@ struct MainWindow: View {
     @EnvironmentObject var session: Session
     @Environment(\.openSettings) var openSettings
     @State private var query = ""
+    @State private var sort: TaskSortField = .title
+    @State private var ascending = true
+    private var visibleTasks: [WorkItem] { model.list(status: session.filter, query: query, sort: sort, ascending: ascending) }
     private let timer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
     var body: some View {
         VStack(spacing: 0) {
@@ -15,11 +18,32 @@ struct MainWindow: View {
             Divider()
             HStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: 12) {
-                    StatusTabs(value: $session.filter)
+                    HStack(spacing: 0) {
+                        StatusTabs(value: $session.filter)
+                        Spacer(minLength: 0)
+                        Menu {
+                            Picker("정렬 기준", selection: $sort) {
+                                ForEach(TaskSortField.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                            }
+                            Divider()
+                            Picker("정렬 방향", selection: $ascending) {
+                                Label("오름차순", systemImage: "arrow.up").tag(true)
+                                Label("내림차순", systemImage: "arrow.down").tag(false)
+                            }
+                        } label: {
+                            Image(systemName: "line.3.horizontal.decrease").font(.system(size: 14))
+                                .frame(width: 28, height: 28).contentShape(Rectangle())
+                        }
+                        .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                        .foregroundStyle(Palette.secondary).handCursor()
+                        .help("정렬: \(sort.rawValue) \(ascending ? "오름차순" : "내림차순")")
+                        .accessibilityLabel("작업 정렬")
+                        .accessibilityValue("\(sort.rawValue) \(ascending ? "오름차순" : "내림차순")")
+                    }
                     ScrollView {
                         LazyVStack(spacing: 2) {
-                            ForEach(model.list(status: session.filter, query: query)) { task in TaskRow(task: task) { session.selected = task.id } }
-                            if model.list(status: session.filter, query: query).isEmpty { Text(query.isEmpty ? "이 상태에 해당하는 작업이 없습니다." : "검색 결과가 없습니다.").font(.system(size: 12)).foregroundStyle(Palette.secondary).padding(.vertical, 30) }
+                            ForEach(visibleTasks) { task in TaskRow(task: task) { session.selected = task.id } }
+                            if visibleTasks.isEmpty { Text(query.isEmpty ? "이 상태에 해당하는 작업이 없습니다." : "검색 결과가 없습니다.").font(.system(size: 12)).foregroundStyle(Palette.secondary).padding(.vertical, 30) }
                         }
                     }
                 }.padding(12).frame(width: 310).background(Palette.quiet)
@@ -35,8 +59,8 @@ struct MainWindow: View {
             case .edit(let id): if let task = model.work(id) { EditTaskForm(task: task).environmentObject(model).environmentObject(session) }
             }
         }
-        .onChange(of: session.filter) { _, value in if model.work(session.selected)?.status != value { session.selected = model.list(status: value, query: query).first?.id } }
-        .onChange(of: query) { _, value in if !model.list(status: session.filter, query: value).contains(where: { $0.id == session.selected }) { session.selected = model.list(status: session.filter, query: value).first?.id } }
+        .onChange(of: session.filter) { _, value in if model.work(session.selected)?.status != value { session.selected = visibleTasks.first?.id } }
+        .onChange(of: query) { _, _ in if !visibleTasks.contains(where: { $0.id == session.selected }) { session.selected = visibleTasks.first?.id } }
         .onReceive(timer) { _ in session.tick() }
         .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didWakeNotification)) { _ in session.resume() }
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in session.tick() }
