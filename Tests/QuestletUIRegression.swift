@@ -75,6 +75,15 @@ struct FailingUITokenVault: TokenVault {
         assert(roleNative.scrollerStyle == .overlay && roleNative.autohidesScrollers && roleNative.verticalScroller?.controlSize == .small)
         assert(roleNative.contentView.bounds.minY > 0 && roleNative.contentView.bounds.maxY >= 192, "Keyboard candidate was not revealed: \(roleNative.contentView.bounds)")
         print("Role candidates: thin auto-hide overlay scrollbar and offscreen keyboard selection reveal passed")
+        let settingsHost = NSHostingView(rootView: SettingsView().environmentObject(session))
+        let settingsWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 650), styleMask: [.borderless], backing: .buffered, defer: false)
+        settingsWindow.contentView = settingsHost
+        settingsHost.layoutSubtreeIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.2))
+        let settingsScrolls = scrollViews(in: settingsHost)
+        assert(!settingsScrolls.isEmpty && settingsScrolls.allSatisfy { $0.scrollerStyle == .overlay && $0.autohidesScrollers && $0.verticalScroller?.controlSize == .small })
+        assert((settingsScrolls[0].documentView?.frame.height ?? 0) >= 650, "Settings content failed to lay out")
+        print("Settings content/environment and thin auto-hide overlay scrollbar passed")
         let form = NSHostingController(rootView: CreationForm().environmentObject(model).environmentObject(session))
         let formSize = form.sizeThatFits(in: CGSize(width: 440, height: 672))
         form.view.frame.size = formSize

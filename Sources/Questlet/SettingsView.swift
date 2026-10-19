@@ -57,7 +57,7 @@ struct TokenConfigurationForm: View {
 struct SettingsView: View {
     @EnvironmentObject var session: Session
     var body: some View {
-        ScrollView {
+        TransientScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 Text("설정").font(.system(size: 20, weight: .semibold))
                 TokenConfigurationForm(firstRun: false)
@@ -78,7 +78,7 @@ struct SettingsView: View {
                     Text("현재 Jira·SRD·RP는 모두 mock이며 실제 변경은 수행하지 않습니다.").font(.system(size: 12)).foregroundStyle(Palette.secondary)
                 }
                 if let model = session.model { Text("로컬 DB: \(model.database.url.path)").textSelection(.enabled).font(.system(size: 11)).foregroundStyle(Palette.secondary) }
-            }.padding(24)
+            }.padding(24).environmentObject(session)
         }.frame(width: 520, height: 650).background(Palette.surface)
             .onAppear { if !session.needsSetup { session.model?.refresh() } }
     }

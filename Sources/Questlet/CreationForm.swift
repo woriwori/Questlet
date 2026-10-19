@@ -44,9 +44,9 @@ struct CreationForm: View {
                 switch tab {
                 case .task: TaskFields(draft: $draft)
                 case .srd:
-                    Field(label: "PRD", placeholder: "PRD 입력", value: $srdPRD)
-                    Field(label: "제목", placeholder: "위키 제목", value: $srdTitle)
-                    Field(label: "상위 페이지 링크", placeholder: "상위 페이지 링크 입력", value: $parent)
+                    Field(label: "PRD", placeholder: "https://...", value: $srdPRD, required: true)
+                    Field(label: "제목", placeholder: "", value: $srdTitle, required: true)
+                    Field(label: "상위 페이지 링크", placeholder: "https://...", value: $parent, required: true)
                 case .rp:
                     RolePicker(options: session.integration.roles, selected: $roles)
                     Field(label: "PRD", placeholder: "https://…", value: $rpPRD)
@@ -103,7 +103,7 @@ struct RolePicker: View {
     private var candidates: [String] { options.filter { !selected.contains($0) && (query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || $0.localizedCaseInsensitiveContains(query.trimmingCharacters(in: .whitespacesAndNewlines))) } }
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("CMDB Role").font(.system(size: 12)).foregroundStyle(Palette.secondary)
+            FieldLabel(label: "CMDB Role", required: true)
             VStack(alignment: .leading, spacing: 6) {
                 if !selected.isEmpty { ChipLayout { ForEach(selected, id: \.self) { role in HStack(spacing: 4) { Text(role).font(.system(size: 12)); Button { selected.removeAll { $0 == role } } label: { Image(systemName: "xmark").font(.system(size: 9)) }.buttonStyle(.plain).accessibilityLabel("\(role) 제거").handCursor() }.padding(5).background(Palette.selected, in: RoundedRectangle(cornerRadius: 4)) } } }
                 RoleSearchField(text: $query, choose: { chooseActive() }, removeLast: { if !selected.isEmpty { selected.removeLast() } }, move: { delta in if !candidates.isEmpty { active = (active + delta + candidates.count) % candidates.count } }).frame(height: 22)
@@ -129,7 +129,7 @@ struct RoleSearchField: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     func makeNSView(context: Context) -> NSTextField {
         let field = NSTextField(); field.isBordered = false; field.drawsBackground = false
-        field.placeholderString = "cmg 또는 valley 검색"; field.font = .systemFont(ofSize: 13)
+        field.placeholderString = ""; field.font = .systemFont(ofSize: 13)
         field.delegate = context.coordinator; field.setAccessibilityLabel("CMDB Role 검색")
         return field
     }
