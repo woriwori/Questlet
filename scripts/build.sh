@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-QUESTLET_SDK_PATH="${QUESTLET_SDK_PATH:-/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk}"
+source scripts/macos-env.sh
 QUESTLET_ARCH="$(uname -m)"
 mkdir -p .build/manual dist
 FLAGS=(-sdk "$QUESTLET_SDK_PATH" -target "$QUESTLET_ARCH-apple-macosx14.0" -swift-version 5 -parse-as-library)
