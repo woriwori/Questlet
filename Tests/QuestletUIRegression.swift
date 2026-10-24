@@ -135,6 +135,14 @@ struct FailingUITokenVault: TokenVault {
         sidebarScroll.reflectScrolledClipView(sidebarScroll.contentView)
         assert(sidebarScroll.contentView.bounds.origin.y == 0)
         print("Actual sidebar with 100 tasks scrolls to bottom and back to top")
+        if CommandLine.arguments.contains("--show-sidebar") {
+            NSApp.setActivationPolicy(.regular)
+            sidebarWindow.styleMask = [.titled, .closable, .resizable]
+            sidebarWindow.title = "Questlet E2E · 테스트 작업 100개"
+            sidebarWindow.center(); sidebarWindow.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            NSApp.run()
+        }
         var commentDraft = "first"
         let commentBinding = Binding(get: { commentDraft }, set: { commentDraft = $0 })
         let commentHost = NSHostingView(rootView: CommentEditor(text: commentBinding).frame(width: 400))
