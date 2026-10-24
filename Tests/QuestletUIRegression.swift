@@ -84,10 +84,8 @@ struct FailingUITokenVault: TokenVault {
         assert(!settingsScrolls.isEmpty && settingsScrolls.allSatisfy { $0.scrollerStyle == .overlay && $0.autohidesScrollers && $0.verticalScroller?.controlSize == .small })
         assert((settingsScrolls[0].documentView?.frame.height ?? 0) > 0, "Settings content failed to lay out")
         print("Settings content/environment and thin auto-hide overlay scrollbar passed")
-        assert(AppConfiguration.jiraBrowseBaseURL == nil)
-        session.openTicket("CMGSL-123")
-        assert(model.error == "Jira 티켓 링크가 아직 연결되지 않았습니다.")
-        model.error = nil
+        let browseURL = Validation.webURL(AppConfiguration.jiraBrowseBaseURL!)!
+        assert(browseURL.appendingPathComponent("CMGSL-32123").absoluteString == "https://bts.coupang.net/browse/CMGSL-32123")
         let settingsPopupHost = NSHostingView(rootView: MainWindow().environmentObject(model).environmentObject(session).frame(width: 780, height: 672).preferredColorScheme(.light))
         let settingsPopupWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 780, height: 672), styleMask: [.borderless], backing: .buffered, defer: false)
         settingsPopupWindow.contentView = settingsPopupHost
@@ -107,7 +105,7 @@ struct FailingUITokenVault: TokenVault {
             try bitmap.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: CommandLine.arguments[index + 1]))
         }
         session.showingSettings = false
-        print("Settings opens inside MainWindow without a new window; 520x600 panel and nil Jira URL checks passed")
+        print("Settings opens inside MainWindow without a new window; 520x600 panel and Jira browse URL checks passed")
         let sidebarSession = Session(databaseURL: directory.appendingPathComponent("sidebar.sqlite"), tokenVault: vault)
         let sidebarModel = sidebarSession.model!
         for index in 1...100 {

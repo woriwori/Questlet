@@ -84,7 +84,7 @@ AI는 토큰을 채팅·문서·스크립트·저장소에 기록하지 않는�
 
 현재 이 저장소의 Jira·SRD·RP 연동은 mock이다. 앱 설치가 실제 사내 API 연결까지 완료한다는 뜻은 아니다.
 회사 Jira 링크는 `Sources/Questlet/AppConfiguration.swift`의 `AppConfiguration.jiraBrowseBaseURL`에
-코드로 설정하며 기본값은 `nil`이다. 설치만 요청받았다면 이 값을 임의로 채우지 않는다.
+코드로 설정하며 현재 값은 `https://bts.coupang.net/browse`다. 설치만 요청받았다면 이 값을 임의로 바꾸지 않는다.
 실제 API 연결을 요청받으면 `docs/INTEGRATION-GUIDE.md`와 `docs/prompts/JIRA-INTEGRATION-PROMPT.md`를 읽는다.
 
 ## 오류가 났을 때

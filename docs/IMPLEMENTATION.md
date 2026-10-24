@@ -6,7 +6,7 @@
 
 잠금으로 미검증이었던 항목은 [2026-10-24 실제 E2E 결과](verification/E2E-2026-10-24.md)를 따른다. 최신 앱을 설치 스크립트로 설치·자동 실행한 후 코멘트 키보드/휠·스크롤바 자동 숨김, 설정 팝업, 100개 사이드바 휠 조작과 CMDB Role 스크롤바를 실제 UI에서 확인했다.
 
-2026-10-24 설정/사이드바 점검: Settings scene과 openSettings 호출을 제거하고 Session.showingSettings를 MainWindow의 캘린더 오버레이와 함께 처리한다. 메뉴/단축키는 메인 창을 열어 동일 팝업을 표시한다. 설정 헤더와 X는 고정하고 내용만 스크롤한다. URL 입력과 UserDefaults 경로를 제거했으며 AppConfiguration.jiraBrowseBaseURL은 nil이다. 별도 NSWindow 수가 증가하지 않는 것, 520×600 크기, nil 링크 안내를 검사했다. 실제 MainWindow에 임시 DB의 작업 100개를 넣어 사이드바 하단(095~100번 작업)이 렌더링되고 상단으로 돌아오는 것을 확인했다. 사이드바 구현은 바꾸지 않았다. 이후 잠금 해제 상태에서 실제 설정 클릭·닫기와 사이드바 휠 E2E도 통과했다.
+2026-10-24 설정/사이드바 점검: Settings scene과 openSettings 호출을 제거하고 Session.showingSettings를 MainWindow의 캘린더 오버레이와 함께 처리한다. 메뉴/단축키는 메인 창을 열어 동일 팝업을 표시한다. 설정 헤더와 X는 고정하고 내용만 스크롤한다. URL 입력과 UserDefaults 경로를 제거했으며 AppConfiguration.jiraBrowseBaseURL은 이후 사용자 요청으로 https://bts.coupang.net/browse 로 설정했다. 별도 NSWindow 수가 증가하지 않는 것, 520×600 크기와 초기 nil 링크 안내를 검사했으며, 이후 실제 설정 URL과 CMGSL-32123의 경로 결합도 검사했다. 실제 MainWindow에 임시 DB의 작업 100개를 넣어 사이드바 하단(095~100번 작업)이 렌더링되고 상단으로 돌아오는 것을 확인했다. 사이드바 구현은 바꾸지 않았다. 이후 잠금 해제 상태에서 실제 설정 클릭·닫기와 사이드바 휠 E2E도 통과했다.
 
 2026-10-24 코멘트 입력 수정: 여러 줄 TextField를 CommentEditor(NSTextView + OverlayScrollView)로 교체했다. Enter 개행과 3~7행 높이 조정, 넘치는 텍스트의 내부 세로 스크롤을 제공한다. 입력 중 선택·한글 조합을 강제로 덮어쓰지 않고 외부에서 초안을 비우면 내용 크기와 스크롤을 초기화한다. 네이티브 편집기의 insertNewline이 바인딩에 개행을 전달하는 것과 긴 텍스트의 마지막 위치까지 스크롤되는 것을 검사했다. 임시 DB의 실제 MainWindow에서 두 줄 입력 및 18줄 입력의 상단/하단 캡처를 생성했다. 이후 잠금 해제 상태에서 실제 Enter·휠 이동·얇은 스크롤바·유휴 자동 숨김까지 E2E로 확인했다.
 

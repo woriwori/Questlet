@@ -85,7 +85,7 @@
 
 ### 화면과 입력
 
-- 설정은 별도 창 대신 캘린더와 같은 앱 내부 딤드 팝업으로 표시한다. 톱니바퀴·앱 메뉴·Cmd+,·메뉴바 설정은 모두 앱 메인 창의 동일 팝업을 연다. X·Esc·딤드 클릭으로 닫으며 배경은 비활성화한다. 팝업은 520×600pt, 외곽은 기존 6px, 내용은 얇은 자동 숨김 스크롤바를 사용한다. Jira 티켓 URL 입력은 제거한다. `Sources/Questlet/AppConfiguration.swift`의 `jiraBrowseBaseURL: String?`는 기본 `nil`이며 나중에 코드에서 설정한다. 미설정 링크 클릭은 연결 전 안내만 표시한다. 기존 UserDefaults의 browse 주소는 사용하지 않는다.
+- 설정은 별도 창 대신 캘린더와 같은 앱 내부 딤드 팝업으로 표시한다. 톱니바퀴·앱 메뉴·Cmd+,·메뉴바 설정은 모두 앱 메인 창의 동일 팝업을 연다. X·Esc·딤드 클릭으로 닫으며 배경은 비활성화한다. 팝업은 520×600pt, 외곽은 기존 6px, 내용은 얇은 자동 숨김 스크롤바를 사용한다. Jira 티켓 URL 입력은 제거한다. `Sources/Questlet/AppConfiguration.swift`의 `jiraBrowseBaseURL: String?`는 `https://bts.coupang.net/browse`로 설정한다. 티켓 `CMGSL-32123`은 `https://bts.coupang.net/browse/CMGSL-32123`으로 연다. 미설정 링크 클릭은 연결 전 안내만 표시한다. 기존 UserDefaults의 browse 주소는 사용하지 않는다.
 
 - 코멘트 입력은 네이티브 다중행 텍스트 편집기를 사용한다. Enter는 등록하지 않고 줄바꿈만 삽입하며, 3~7행 높이로 늘어난 뒤 넘치는 내용은 입력창 내부에서 세로 스크롤한다. 입력과 한글 조합 중 선택 범위를 강제로 초기화하지 않는다. 등록은 기존 “추가” 버튼으로 한다.
 

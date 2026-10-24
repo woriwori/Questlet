@@ -57,7 +57,7 @@ CompanyJiraTicketAdapter.execute의 `request.mutation`을 switch한다.
 
 앱의 로컬 저장과 미처리 요청을 만드는 위치는 유지한다. Jira가 실패해도 로컬 변경을 롤백하지 않는다. 날짜와 상태는 별도 요청이므로 성공한 날짜를 상태 실패 때문에 다시 보내지 않는다. 원격 확인이 불가능한 코멘트 결과를 단순 실패로 바꿔 재전송하지 않는다.
 
-Jira 티켓 링크는 변경 interface의 반환값에 의존하지 않는다. `Sources/Questlet/AppConfiguration.swift`의 `AppConfiguration.jiraBrowseBaseURL`과 정규화된 티켓 키로 만든다. 기본값은 `nil`이며 사내 연결 시 코드에 browse URL을 입력한다. 설정 화면에는 URL 입력을 제공하지 않고 미설정 상태에서는 링크 연결 전 안내만 표시한다. 티켓이 없는 작업의 로컬 저장에도 Jira 연결이 필요해서는 안 된다.
+Jira 티켓 링크는 변경 interface의 반환값에 의존하지 않는다. `Sources/Questlet/AppConfiguration.swift`의 `AppConfiguration.jiraBrowseBaseURL`과 정규화된 티켓 키로 만든다. 현재 값은 `https://bts.coupang.net/browse`이며 티켓 키는 경로로 붙인다. 설정 화면에는 URL 입력을 제공하지 않고 미설정 상태에서는 링크 연결 전 안내만 표시한다. 티켓이 없는 작업의 로컬 저장에도 Jira 연결이 필요해서는 안 된다.
 
 ### SRD
 
