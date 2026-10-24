@@ -57,7 +57,7 @@ CompanyJiraTicketAdapter가 기존 `JiraTicketModule.execute`를 구현하도록
 
 기본 HTTP 호출에는 Foundation URLSession을 우선 사용하고, 회사에 이미 정해진 호출 도구가 있으면 그 규격에 맞추세요. 인증·HTTP/스크립트 호출·필드/상태 매핑·응답 변환은 adapter 내부에서 처리합니다. UI에 회사 응답 JSON이나 transition 조회 절차를 노출하지 마세요.
 
-구현이 준비되면 IntegrationAssembly의 `jira`만 CompanyJiraTicketAdapter로 바꾸세요. 테스트에서 MockJiraTicketAdapter를 주입하는 구조는 유지합니다. 실제 모드에서 TaskViews의 “모의 Jira” 문구와 SettingsView의 “현재 Jira·SRD·RP는 모두 mock” 안내와 TokenConfigurationForm의 “토큰의 유효성은 실제 API 연결 후 확인” 안내를 정확하게 바꾸고, mock 시나리오 설정이 SRD/RP에만 적용됨을 표시하세요. 티켓 링크는 기존 browse 설정을 사용합니다.
+구현이 준비되면 IntegrationAssembly의 `jira`만 CompanyJiraTicketAdapter로 바꾸세요. 테스트에서 MockJiraTicketAdapter를 주입하는 구조는 유지합니다. 실제 모드에서 TaskViews의 “모의 Jira” 문구와 SettingsView의 “현재 Jira·SRD·RP는 모두 mock” 안내와 TokenConfigurationForm의 “토큰의 유효성은 실제 API 연결 후 확인” 안내를 정확하게 바꾸고, mock 시나리오 설정이 SRD/RP에만 적용됨을 표시하세요. 티켓 링크는 `Sources/Questlet/AppConfiguration.swift`의 `AppConfiguration.jiraBrowseBaseURL`을 사용합니다. 현재 `nil`이므로 사내 browse URL을 코드에서 지정하세요. 설정 UI나 UserDefaults 입력은 사용하지 않습니다.
 
 완료 기준: 설정에서 Jira PAT를 교체한 뒤 새 요청/재시도에 새 인증 값이 반영되고, 앱의 기존 저장·수정·코멘트 경로가 실제 adapter를 호출하며, SRD/RP는 기존 mock을 호출합니다. 네트워크 대기 중 UI는 응답하고 앱은 실제 Jira 결과를 상세 화면에 표시합니다.
 

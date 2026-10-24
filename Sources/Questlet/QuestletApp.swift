@@ -13,11 +13,11 @@ enum FormRoute: Identifiable {
     @Published var selected: UUID?
     @Published var filter: TaskStatus = .inProgress
     @Published var route: FormRoute?
+    @Published var showingSettings = false
     @Published var generating = false
     @Published var needsSetup = true
     @Published var credentialError: String?
     @Published var scenario: MockScenario = .success
-    @Published var jiraBase = UserDefaults.standard.string(forKey: "jiraBrowseBase") ?? ""
     private var quittingSetup = false
     private var timer: Timer?
     private var wakeObserver: NSObjectProtocol?
@@ -69,13 +69,26 @@ enum FormRoute: Identifiable {
     func resume() { if !needsSetup && !quittingSetup { model?.refresh(resuming: true) } }
     func tick() { guard !needsSetup && !quittingSetup else { return }; let day = Dates.day(); if day != lastDay { lastDay = day; model?.refresh() } }
     func openTicket(_ ticket: String) {
-        guard let base = Validation.webURL(jiraBase) else { model?.error = "설정에서 사내 Jira browse 주소를 입력하세요. 예: https://회사주소/browse/"; return }
+        guard let configured = AppConfiguration.jiraBrowseBaseURL, let base = Validation.webURL(configured) else { model?.error = "Jira 티켓 링크가 아직 연결되지 않았습니다."; return }
         NSWorkspace.shared.open(base.appendingPathComponent(ticket))
     }
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+}
+
+struct SettingsCommands: Commands {
+    @ObservedObject var session: Session
+    @Environment(\.openWindow) private var openWindow
+    var body: some Commands {
+        CommandGroup(replacing: .appSettings) {
+            Button("설정…") {
+                openWindow(id: "main"); NSApp.activate(ignoringOtherApps: true)
+                session.route = nil; session.showingSettings = true
+            }.keyboardShortcut(",").disabled(session.generating || session.needsSetup)
+        }
+    }
 }
 
 #if !QUESTLET_UI_CHECKS
@@ -93,6 +106,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .sheet(isPresented: $session.needsSetup, onDismiss: { session.setupDidDismiss() }) { TokenConfigurationForm(firstRun: true).environmentObject(session).interactiveDismissDisabled() }
         }
         .defaultSize(width: 960, height: 700)
+        .commands { SettingsCommands(session: session) }
         .commands { CommandGroup(replacing: .newItem) { Button("새로 만들기") { session.route = .create }.keyboardShortcut("n").disabled(session.generating || session.needsSetup) } }
         MenuBarExtra {
             if let model = session.model { MenuPopover().environmentObject(model).environmentObject(session).preferredColorScheme(.light) }
@@ -100,7 +114,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } label: {
             Image(nsImage: MenuBarLogo.image).renderingMode(.original).accessibilityLabel("Questlet")
         }.menuBarExtraStyle(.window)
-        Settings { SettingsView().environmentObject(session).preferredColorScheme(.light) }
     }
 }
 

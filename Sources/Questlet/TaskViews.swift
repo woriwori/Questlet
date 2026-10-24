@@ -5,7 +5,6 @@ import QuestletCore
 struct MainWindow: View {
     @EnvironmentObject var model: AppModel
     @EnvironmentObject var session: Session
-    @Environment(\.openSettings) var openSettings
     @State private var query = ""
     @State private var sort: TaskSortField = .title
     @State private var ascending = true
@@ -19,8 +18,8 @@ struct MainWindow: View {
                 HStack(spacing: 7) {
                     Text(Dates.timestamp(Date()).prefix(10)).font(.system(size: 12)).foregroundStyle(Palette.secondary)
                     HStack(spacing: 0) {
-                        IconButton(symbol: "calendar", label: "캘린더", size: 30, glyph: 16) { showingCalendar = true }.disabled(session.needsSetup)
-                        IconButton(symbol: "gearshape", label: "설정", size: 30, glyph: 16) { openSettings() }
+                        IconButton(symbol: "calendar", label: "캘린더", size: 30, glyph: 16) { session.showingSettings = false; showingCalendar = true }.disabled(session.needsSetup)
+                        IconButton(symbol: "gearshape", label: "설정", size: 30, glyph: 16) { session.route = nil; session.showingSettings = true }
                     }
                     IconButton(symbol: "plus", label: "새로 만들기", accent: true, size: 32) { session.route = .create }.disabled(session.needsSetup)
                 }
@@ -64,16 +63,18 @@ struct MainWindow: View {
             }
         }
         .background(Palette.surface)
-        .disabled(showingCalendar || session.route != nil)
-        .accessibilityHidden(showingCalendar || session.route != nil)
+        .disabled(showingCalendar || session.showingSettings || session.route != nil)
+        .accessibilityHidden(showingCalendar || session.showingSettings || session.route != nil)
         .overlay {
-            if showingCalendar || session.route != nil {
+            if showingCalendar || session.showingSettings || session.route != nil {
                 GeometryReader { geometry in
                     ZStack {
-                        Color.black.opacity(0.14).contentShape(Rectangle()).onTapGesture { if session.route == nil { showingCalendar = false } }
+                        Color.black.opacity(0.14).contentShape(Rectangle()).onTapGesture { if session.route == nil { showingCalendar = false; session.showingSettings = false } }
                         Group {
                             if let route = session.route {
                                 form(for: route).frame(width: 440).id(route.id)
+                            } else if session.showingSettings {
+                                SettingsView().environmentObject(session)
                             } else {
                                 WorkCalendarPanel(tasks: model.tasks, today: model.today, close: { showingCalendar = false }) { task in
                                     session.choose(task); showingCalendar = false
@@ -84,8 +85,9 @@ struct MainWindow: View {
                 }
             }
         }
-        .onExitCommand { if !session.generating { session.route = nil; showingCalendar = false } }
-        .onChange(of: session.route?.id) { _, value in if value != nil { showingCalendar = false } }
+        .onExitCommand { if !session.generating { session.route = nil; showingCalendar = false; session.showingSettings = false } }
+        .onChange(of: session.route?.id) { _, value in if value != nil { showingCalendar = false; session.showingSettings = false } }
+        .onChange(of: session.showingSettings) { _, value in if value { showingCalendar = false } }
         .onChange(of: session.filter) { _, value in if model.work(session.selected)?.status != value { session.selected = visibleTasks.first?.id } }
         .onChange(of: query) { _, _ in if !visibleTasks.contains(where: { $0.id == session.selected }) { session.selected = visibleTasks.first?.id } }
         .onReceive(timer) { _ in session.tick() }
@@ -201,7 +203,6 @@ struct MenuPopover: View {
     @EnvironmentObject var model: AppModel
     @EnvironmentObject var session: Session
     @Environment(\.openWindow) var openWindow
-    @Environment(\.openSettings) var openSettings
     @State private var filter: TaskStatus = .inProgress
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -210,7 +211,7 @@ struct MenuPopover: View {
             ScrollView { LazyVStack(spacing: 2) { ForEach(model.list(status: filter)) { task in TaskRow(task: task, compact: true) { session.choose(task); show() } }; if model.list(status: filter).isEmpty { Text("이 상태에 해당하는 작업이 없습니다.").font(.system(size: 12)).foregroundStyle(Palette.secondary).padding(.vertical, 20) } } }.frame(height: min(330, max(64, CGFloat(model.list(status: filter).count) * 84)))
         }.padding(9).frame(width: 340).background(Palette.surface)
         .onAppear { filter = .inProgress; if !session.needsSetup { model.refresh() } }
-        .contextMenu { Button("설정…") { openSettings() }; Button("Questlet 종료") { NSApp.terminate(nil) } }
+        .contextMenu { Button("설정…") { show(); session.route = nil; session.showingSettings = true }.disabled(session.generating || session.needsSetup); Button("Questlet 종료") { NSApp.terminate(nil) } }
     }
     private func show() { openWindow(id: "main"); NSApp.activate(ignoringOtherApps: true) }
 }

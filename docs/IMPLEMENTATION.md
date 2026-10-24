@@ -4,6 +4,8 @@
 
 ## 구현 범위
 
+2026-10-24 설정/사이드바 점검: Settings scene과 openSettings 호출을 제거하고 Session.showingSettings를 MainWindow의 캘린더 오버레이와 함께 처리한다. 메뉴/단축키는 메인 창을 열어 동일 팝업을 표시한다. 설정 헤더와 X는 고정하고 내용만 스크롤한다. URL 입력과 UserDefaults 경로를 제거했으며 AppConfiguration.jiraBrowseBaseURL은 nil이다. 별도 NSWindow 수가 증가하지 않는 것, 520×600 크기, nil 링크 안내를 검사했다. 실제 MainWindow에 임시 DB의 작업 100개를 넣어 사이드바 하단(095~100번 작업)이 렌더링되고 상단으로 돌아오는 것을 확인했다. 사이드바 구현은 바꾸지 않았다. 실제 휠/설정 클릭 E2E는 Mac 잠금 상태로 미검증이며 네이티브 뷰 검사와 렌더링 캡처로 확인했다.
+
 2026-10-24 코멘트 입력 수정: 여러 줄 TextField를 CommentEditor(NSTextView + OverlayScrollView)로 교체했다. Enter 개행과 3~7행 높이 조정, 넘치는 텍스트의 내부 세로 스크롤을 제공한다. 입력 중 선택·한글 조합을 강제로 덮어쓰지 않고 외부에서 초안을 비우면 내용 크기와 스크롤을 초기화한다. 네이티브 편집기의 insertNewline이 바인딩에 개행을 전달하는 것과 긴 텍스트의 마지막 위치까지 스크롤되는 것을 검사했다. 임시 DB의 실제 MainWindow에서 두 줄 입력 및 18줄 입력의 상단/하단 캡처를 생성했다. 사용자 Mac이 잠겨 있어 수정 후 실제 키보드·휠 입력 E2E는 미검증이다.
 
 다른 생성 탭으로 이동하면 changeTab에서 모든 초안·선택 role·요청 결과/오류를 초기화하고 formContent.id(tab)로 검색어 등 자식 상태도 새로 만든다. RP는 필수 PRD를 위로 옮겼으며 칩과 검색 입력을 동일 ChipLayout에 배치해 별도 빈 줄을 없앴다. 실제 UI에서 새 작업 제목, SRD PRD/제목, RP PRD/role/검색어를 입력한 후 탭을 왕복해 값이 비워지고 새 작업 시작일이 오늘로 복원되는 것을 확인했다. role 추가 후 검색칸이 같은 줄에 남고 푸터 구분선이 사라진 것도 확인했다.

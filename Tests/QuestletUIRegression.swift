@@ -76,14 +76,65 @@ struct FailingUITokenVault: TokenVault {
         assert(roleNative.contentView.bounds.minY > 0 && roleNative.contentView.bounds.maxY >= 192, "Keyboard candidate was not revealed: \(roleNative.contentView.bounds)")
         print("Role candidates: thin auto-hide overlay scrollbar and offscreen keyboard selection reveal passed")
         let settingsHost = NSHostingView(rootView: SettingsView().environmentObject(session))
-        let settingsWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 650), styleMask: [.borderless], backing: .buffered, defer: false)
+        let settingsWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 600), styleMask: [.borderless], backing: .buffered, defer: false)
         settingsWindow.contentView = settingsHost
         settingsHost.layoutSubtreeIfNeeded()
         RunLoop.main.run(until: Date().addingTimeInterval(0.2))
         let settingsScrolls = scrollViews(in: settingsHost)
         assert(!settingsScrolls.isEmpty && settingsScrolls.allSatisfy { $0.scrollerStyle == .overlay && $0.autohidesScrollers && $0.verticalScroller?.controlSize == .small })
-        assert((settingsScrolls[0].documentView?.frame.height ?? 0) >= 650, "Settings content failed to lay out")
+        assert((settingsScrolls[0].documentView?.frame.height ?? 0) > 0, "Settings content failed to lay out")
         print("Settings content/environment and thin auto-hide overlay scrollbar passed")
+        assert(AppConfiguration.jiraBrowseBaseURL == nil)
+        session.openTicket("CMGSL-123")
+        assert(model.error == "Jira 티켓 링크가 아직 연결되지 않았습니다.")
+        model.error = nil
+        let settingsPopupHost = NSHostingView(rootView: MainWindow().environmentObject(model).environmentObject(session).frame(width: 780, height: 672).preferredColorScheme(.light))
+        let settingsPopupWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 780, height: 672), styleMask: [.borderless], backing: .buffered, defer: false)
+        settingsPopupWindow.contentView = settingsPopupHost
+        let originalWindowCount = NSApp.windows.count
+        session.showingSettings = true
+        settingsPopupHost.layoutSubtreeIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.2))
+        assert(NSApp.windows.count == originalWindowCount, "Opening settings created a separate window")
+        let panelSize = NSHostingController(rootView: SettingsView().environmentObject(session)).sizeThatFits(in: CGSize(width: 520, height: 600))
+        assert(panelSize.width == 520 && panelSize.height == 600)
+        if let index = CommandLine.arguments.firstIndex(of: "--render-settings"), CommandLine.arguments.count > index + 1 {
+            for scroll in scrollViews(in: settingsPopupHost) {
+                if let document = scroll.documentView, let bitmap = document.bitmapImageRepForCachingDisplay(in: document.bounds) { document.cacheDisplay(in: document.bounds, to: bitmap) }
+            }
+            let bitmap = settingsPopupHost.bitmapImageRepForCachingDisplay(in: settingsPopupHost.bounds)!
+            settingsPopupHost.cacheDisplay(in: settingsPopupHost.bounds, to: bitmap)
+            try bitmap.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: CommandLine.arguments[index + 1]))
+        }
+        session.showingSettings = false
+        print("Settings opens inside MainWindow without a new window; 520x600 panel and nil Jira URL checks passed")
+        let sidebarSession = Session(databaseURL: directory.appendingPathComponent("sidebar.sqlite"), tokenVault: vault)
+        let sidebarModel = sidebarSession.model!
+        for index in 1...100 {
+            _ = try sidebarModel.save(id: nil, title: String(format: "스크롤 점검 %03d", index), ticket: "", start: sidebarModel.today, end: sidebarModel.today)
+        }
+        let sidebarHost = NSHostingView(rootView: MainWindow().environmentObject(sidebarModel).environmentObject(sidebarSession).frame(width: 780, height: 672).preferredColorScheme(.light))
+        let sidebarWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 780, height: 672), styleMask: [.borderless], backing: .buffered, defer: false)
+        sidebarWindow.contentView = sidebarHost
+        sidebarHost.layoutSubtreeIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.2))
+        let sidebarScroll = scrollViews(in: sidebarHost)[0]
+        guard let sidebarDocument = sidebarScroll.documentView else { fatalError("Sidebar scroll document missing") }
+        assert(sidebarDocument.frame.height > sidebarScroll.contentView.bounds.height * 5)
+        sidebarScroll.contentView.scroll(to: NSPoint(x: 0, y: sidebarDocument.frame.height - sidebarScroll.contentView.bounds.height))
+        sidebarScroll.reflectScrolledClipView(sidebarScroll.contentView)
+        sidebarHost.layoutSubtreeIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.2))
+        assert(sidebarScroll.contentView.bounds.origin.y > 0)
+        if let index = CommandLine.arguments.firstIndex(of: "--render-sidebar"), CommandLine.arguments.count > index + 1 {
+            let bitmap = sidebarHost.bitmapImageRepForCachingDisplay(in: sidebarHost.bounds)!
+            sidebarHost.cacheDisplay(in: sidebarHost.bounds, to: bitmap)
+            try bitmap.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: CommandLine.arguments[index + 1]))
+        }
+        sidebarScroll.contentView.scroll(to: .zero)
+        sidebarScroll.reflectScrolledClipView(sidebarScroll.contentView)
+        assert(sidebarScroll.contentView.bounds.origin.y == 0)
+        print("Actual sidebar with 100 tasks scrolls to bottom and back to top")
         var commentDraft = "first"
         let commentBinding = Binding(get: { commentDraft }, set: { commentDraft = $0 })
         let commentHost = NSHostingView(rootView: CommentEditor(text: commentBinding).frame(width: 400))
@@ -253,7 +304,7 @@ struct FailingUITokenVault: TokenVault {
             if CommandLine.arguments.contains("--show-settings") {
                 window.title = "Questlet 설정 검증"
                 window.contentViewController = NSHostingController(rootView: SettingsView().environmentObject(session))
-                window.setContentSize(NSSize(width: 520, height: 650))
+                window.setContentSize(NSSize(width: 520, height: 600))
             } else if CommandLine.arguments.contains("--show-onboarding") {
                 try vault.save(APITokens()); session.needsSetup = true
                 window.title = "Questlet 최초 설정 검증"

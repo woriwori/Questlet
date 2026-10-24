@@ -57,29 +57,29 @@ struct TokenConfigurationForm: View {
 struct SettingsView: View {
     @EnvironmentObject var session: Session
     var body: some View {
-        TransientScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+        VStack(spacing: 0) {
+            HStack {
                 Text("설정").font(.system(size: 20, weight: .semibold))
-                TokenConfigurationForm(firstRun: false)
-                Divider()
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Jira 티켓 링크").font(.system(size: 14, weight: .semibold))
-                    TextField("https://회사주소/browse/", text: $session.jiraBase).textFieldStyle(.roundedBorder).accessibilityLabel("Jira browse 주소")
-                        .onChange(of: session.jiraBase) { _, value in UserDefaults.standard.set(value, forKey: "jiraBrowseBase") }
-                    Text("티켓 링크를 여는 주소입니다. 실제 API 주소와 인증 방식은 사내 adapter에서 설정합니다.").font(.system(size: 12)).foregroundStyle(Palette.secondary)
-                }
-                Divider()
-                if let model = session.model { ClosedCleanup(model: model) }
-                Divider()
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("모의 연동").font(.system(size: 14, weight: .semibold))
-                    Picker("모의 응답", selection: $session.scenario) { ForEach(MockScenario.allCases, id: \.self) { Text($0.rawValue).tag($0) } }
-                        .onChange(of: session.scenario) { _, value in Task { await session.integration.control.set(value) } }
-                    Text("현재 Jira·SRD·RP는 모두 mock이며 실제 변경은 수행하지 않습니다.").font(.system(size: 12)).foregroundStyle(Palette.secondary)
-                }
-                if let model = session.model { Text("로컬 DB: \(model.database.url.path)").textSelection(.enabled).font(.system(size: 11)).foregroundStyle(Palette.secondary) }
-            }.padding(24).environmentObject(session)
-        }.frame(width: 520, height: 650).background(Palette.surface)
+                Spacer()
+                IconButton(symbol: "xmark", label: "설정 닫기") { session.showingSettings = false }.keyboardShortcut(.cancelAction)
+            }.padding(24)
+            TransientScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    TokenConfigurationForm(firstRun: false)
+                    Divider()
+                    if let model = session.model { ClosedCleanup(model: model) }
+                    Divider()
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("모의 연동").font(.system(size: 14, weight: .semibold))
+                        Picker("모의 응답", selection: $session.scenario) { ForEach(MockScenario.allCases, id: \.self) { Text($0.rawValue).tag($0) } }
+                            .onChange(of: session.scenario) { _, value in Task { await session.integration.control.set(value) } }
+                        Text("현재 Jira·SRD·RP는 모두 mock이며 실제 변경은 수행하지 않습니다.").font(.system(size: 12)).foregroundStyle(Palette.secondary)
+                    }
+                    if let model = session.model { Text("로컬 DB: \(model.database.url.path)").textSelection(.enabled).font(.system(size: 11)).foregroundStyle(Palette.secondary) }
+                }.padding(.horizontal, 24).padding(.bottom, 24).environmentObject(session)
+            }
+        }.frame(width: 520, height: 600).background(Palette.surface)
+            .contentShape(Rectangle()).onTapGesture {} // Keep clicks inside the panel off the dimmed backdrop.
             .onAppear { if !session.needsSetup { session.model?.refresh() } }
     }
 }
