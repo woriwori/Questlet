@@ -84,6 +84,28 @@ struct FailingUITokenVault: TokenVault {
         assert(!settingsScrolls.isEmpty && settingsScrolls.allSatisfy { $0.scrollerStyle == .overlay && $0.autohidesScrollers && $0.verticalScroller?.controlSize == .small })
         assert((settingsScrolls[0].documentView?.frame.height ?? 0) >= 650, "Settings content failed to lay out")
         print("Settings content/environment and thin auto-hide overlay scrollbar passed")
+        var commentDraft = "first"
+        let commentBinding = Binding(get: { commentDraft }, set: { commentDraft = $0 })
+        let commentHost = NSHostingView(rootView: CommentEditor(text: commentBinding).frame(width: 400))
+        let commentWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 140), styleMask: [.borderless], backing: .buffered, defer: false)
+        commentWindow.contentView = commentHost
+        commentHost.layoutSubtreeIfNeeded()
+        let commentScroll = scrollViews(in: commentHost)[0]
+        let editor = commentScroll.documentView as! CommentTextView
+        editor.setSelectedRange(NSRange(location: editor.string.utf16.count, length: 0))
+        editor.insertNewline(nil)
+        assert(editor.string == "first\n" && commentDraft == "first\n", "Return failed to insert a newline")
+        editor.insertText((1...20).map { "line \($0)" }.joined(separator: "\n"), replacementRange: editor.selectedRange())
+        commentHost.layoutSubtreeIfNeeded()
+        editor.sizeToFit()
+        commentScroll.layoutSubtreeIfNeeded()
+        assert(editor.frame.height > commentScroll.contentView.bounds.height, "Long comment did not overflow")
+        let initialOrigin = commentScroll.contentView.bounds.origin.y
+        commentScroll.contentView.scroll(to: NSPoint(x: 0, y: 0))
+        commentScroll.reflectScrolledClipView(commentScroll.contentView)
+        editor.scrollRangeToVisible(NSRange(location: editor.string.utf16.count, length: 0))
+        assert(commentScroll.contentView.bounds.origin.y > 0, "Long comment cannot scroll to its end: \(initialOrigin)")
+        print("Comment editor: Return inserts newline, updates binding and long text scrolls internally")
         let form = NSHostingController(rootView: CreationForm().environmentObject(model).environmentObject(session))
         let formSize = form.sizeThatFits(in: CGSize(width: 440, height: 672))
         form.view.frame.size = formSize
@@ -159,10 +181,11 @@ struct FailingUITokenVault: TokenVault {
             ] { _ = try calendarModel.save(id: nil, title: title, ticket: "", start: start, end: end) }
             session.selected = calendarModel.tasks.first?.id
             let renderingCreation = CommandLine.arguments.contains("--creation")
+            let renderingComment = CommandLine.arguments.contains("--comment")
             if renderingCreation { session.route = .create }
             let preview = ZStack {
                 MainWindow().environmentObject(calendarModel).environmentObject(session)
-                if !renderingCreation {
+                if !renderingCreation && !renderingComment {
                     Color.black.opacity(0.14)
                     WorkCalendarPanel(tasks: calendarModel.tasks, today: "2026-10-19", close: {}, select: { _ in })
                         .floatingSurface()
@@ -174,6 +197,38 @@ struct FailingUITokenVault: TokenVault {
             view.layoutSubtreeIfNeeded()
             RunLoop.main.run(until: Date().addingTimeInterval(0.2))
             view.displayIfNeeded()
+            if renderingComment {
+                func findEditor(_ node: NSView) -> CommentTextView? {
+                    if let editor = node as? CommentTextView { return editor }
+                    return node.subviews.compactMap { findEditor($0) }.first
+                }
+                guard let editor = findEditor(view), let scroll = editor.enclosingScrollView else { fatalError("Comment editor missing from actual MainWindow") }
+                func capture(_ suffix: String) throws {
+                    view.layoutSubtreeIfNeeded(); view.displayIfNeeded()
+                    let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds)!
+                    view.cacheDisplay(in: view.bounds, to: bitmap)
+                    let path = URL(fileURLWithPath: CommandLine.arguments[argument + 1]).deletingPathExtension().path + suffix + ".png"
+                    try bitmap.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: path))
+                }
+                editor.insertText("첫 번째 줄: 코멘트 입력 확인", replacementRange: editor.selectedRange())
+                editor.insertNewline(nil)
+                editor.insertText("두 번째 줄: Enter로 줄바꿈", replacementRange: editor.selectedRange())
+                RunLoop.main.run(until: Date().addingTimeInterval(0.2))
+                assert(editor.string.contains("확인\n두 번째"))
+                try capture("-newline")
+                editor.insertNewline(nil)
+                editor.insertText((3...18).map { String(format: "%02d번째 줄: 긴 코멘트 내부 스크롤 확인", $0) }.joined(separator: "\n"), replacementRange: editor.selectedRange())
+                RunLoop.main.run(until: Date().addingTimeInterval(0.2))
+                view.layoutSubtreeIfNeeded()
+                assert(editor.frame.height > scroll.contentView.bounds.height, "Actual main-window editor did not overflow")
+                scroll.contentView.scroll(to: .zero); scroll.reflectScrolledClipView(scroll.contentView)
+                try capture("-scroll-top")
+                editor.scrollRangeToVisible(NSRange(location: editor.string.utf16.count, length: 0))
+                assert(scroll.contentView.bounds.origin.y > 0, "Actual main-window editor cannot scroll")
+                try capture("-scroll-bottom")
+                print("Actual MainWindow rendered: newline and internal scroll at top/bottom; no user data or desktop captured")
+                return
+            }
             guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { fatalError("Calendar preview bitmap unavailable") }
             view.cacheDisplay(in: view.bounds, to: bitmap)
             guard let png = bitmap.representation(using: .png, properties: [:]) else { fatalError("Calendar preview PNG unavailable") }

@@ -159,7 +159,7 @@ struct TaskDetail: View {
                 }
                 if task.comments.isEmpty { Text("남긴 메모가 여기에 쌓입니다.").font(.system(size: 13)).foregroundStyle(Palette.secondary) }
                 VStack(alignment: .trailing, spacing: 8) {
-                    TextField("작업 메모나 링크를 남기세요.", text: $comment, axis: .vertical).lineLimit(3...7).textFieldStyle(.plain).font(.system(size: 14)).padding(10).background(Palette.quiet, in: RoundedRectangle(cornerRadius: 6)).accessibilityLabel("작업 메모 입력")
+                    CommentEditor(text: $comment).background(Palette.quiet, in: RoundedRectangle(cornerRadius: 6))
                     HStack { Text(task.ticket.isEmpty ? "로컬에만 저장" : "모의 Jira 연동").font(.system(size: 11)).foregroundStyle(Palette.secondary); Spacer(); Button("추가") { do { try model.addComment(taskID: task.id, body: comment); comment = "" } catch { model.error = error.localizedDescription } }.disabled(comment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.busy(task.id)).handCursor() }
                 }
             }.padding(24)
